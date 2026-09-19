@@ -3,12 +3,14 @@
 console.log('🎯 CareerRadar Active — Ambient Real-Time Job Decision Engine.');
 
 const BACKEND_URL = 'http://localhost:3001';
-const scannedCards = new WeakSet();
-let lastScannedJobId = null;
+
+// Internal State Machine
+let activeJobId = null;
+let isEvaluating = false;
+let lastEvaluatedJobId = null;
+let inflightController = null;
 let scanDebounceTimer = null;
 let lastKnownUrl = window.location.href;
-let currentInflightController = null;
-let currentEvaluationTimer = null;
 
 // Platform Detection
 const host = window.location.hostname;
@@ -17,29 +19,7 @@ const isIndeed = host.includes('indeed.com');
 const isWellfound = host.includes('wellfound.com') || host.includes('angel.co');
 const isYC = host.includes('workatastartup.com');
 
-// Helper: Extract unique Job ID from URL or DOM
-function getActiveJobIdFromPage() {
-  try {
-    const url = window.location.href;
-    if (isLinkedIn) {
-      const matchParam = url.match(/[?&]currentJobId=(\d+)/);
-      if (matchParam) return matchParam[1];
-      const matchPath = url.match(/\/jobs\/view\/(\d+)/);
-      if (matchPath) return matchPath[1];
-      const activeCard = document.querySelector('.jobs-search-results-list__list-item--active, .job-card-container--clickable');
-      const cardId = activeCard?.getAttribute('data-job-id') || activeCard?.getAttribute('data-occludable-job-id');
-      if (cardId) return cardId;
-    } else if (isIndeed) {
-      const matchJk = url.match(/[?&]vjk=([a-zA-Z0-9]+)/);
-      if (matchJk) return matchJk[1];
-    }
-    return null;
-  } catch {
-    return null;
-  }
-}
-
-// Safe Chrome Extensions API wrappers to prevent "Extension context invalidated" errors
+// ── Defensive Chrome Extensions API Guards ──
 function isExtensionContextValid() {
   try {
     return typeof chrome !== 'undefined' && !!chrome.runtime && !!chrome.runtime.id;
@@ -52,11 +32,11 @@ function safeStorageSet(data) {
   try {
     if (isExtensionContextValid() && chrome.storage?.local) {
       chrome.storage.local.set(data, () => {
-        if (chrome.runtime?.lastError) { /* ignore */ }
+        if (chrome.runtime?.lastError) { /* swallow */ }
       });
     }
   } catch {
-    // Ignore context error
+    // Context invalidated
   }
 }
 
@@ -64,15 +44,15 @@ function safeSendMessage(message) {
   try {
     if (isExtensionContextValid()) {
       chrome.runtime.sendMessage(message, () => {
-        if (chrome.runtime?.lastError) { /* ignore */ }
+        if (chrome.runtime?.lastError) { /* swallow */ }
       });
     }
   } catch {
-    // Ignore context error
+    // Context invalidated
   }
 }
 
-// Retrieve Active Persona & Custom Resume from Storage
+// ── Candidate Profile Access ──
 async function getActiveCandidate() {
   try {
     if (isExtensionContextValid() && chrome.storage?.local) {
@@ -82,130 +62,146 @@ async function getActiveCandidate() {
         customResume: stored.customResume || null
       };
     }
-  } catch {
-    // Ignore error
-  }
+  } catch {}
   return { activePersona: 'custom', customResume: null };
 }
 
-// ── Smart Job Description Extractor ──
-function extractFullJobDescription() {
+// ── Unique Job ID Extractor ──
+function getActiveJobIdFromPage() {
+  try {
+    const url = window.location.href;
+    if (isLinkedIn) {
+      const matchParam = url.match(/[?&]currentJobId=(\d+)/);
+      if (matchParam) return matchParam[1];
+      const matchPath = url.match(/\/jobs\/view\/(\d+)/);
+      if (matchPath) return matchPath[1];
+      const activeCard = document.querySelector(
+        '.jobs-search-results-list__list-item--active, [data-occludable-job-id].active, [data-job-id].active'
+      );
+      const cardId = activeCard?.getAttribute('data-job-id') ||
+                     activeCard?.getAttribute('data-occludable-job-id');
+      if (cardId) return cardId.replace(/[^0-9]/g, '') || cardId;
+    } else if (isIndeed) {
+      const matchJk = url.match(/[?&]vjk=([a-zA-Z0-9]+)/);
+      if (matchJk) return matchJk[1];
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+// ── Robust Job Details Extractor ──
+function extractActiveJobDetails() {
+  let title = '';
+  let company = '';
+  let location = '';
+  let description = '';
+
   const detailPane = document.querySelector(
     '.jobs-search__job-details, .scaffold-layout__detail, .job-view-layout, .jobs-details, [data-view-name="job-details-component"], .jobsearch-JobComponent, main, article'
   );
 
-  const descEl = (detailPane || document).querySelector(
-    '#job-details, .jobs-description__content, .jobs-description-content__text, [data-view-name="job-details-component"], .jobs-box__html-content, article.jobs-description__container, article, #jobDescriptionText, .styles_description__, [data-qa="job-description"], .job-description'
-  );
-
-  const directText = descEl?.innerText?.trim();
-  if (directText && directText.length > 80) {
-    return directText;
-  }
-
-  // Look ONLY within detailPane for "About the job" headers to avoid scraping the top search bar or left rail
-  const containerText = detailPane?.innerText || '';
-  const markerHeaders = [
-    'About the job',
-    'About the role',
-    'Job description',
-    'Role Overview',
-    'What you\'ll do',
-    'What You\'ll Do',
-    'Responsibilities',
-    'Our Ideal Candidate',
-    'What we\'re looking for',
-    'Qualifications',
-    'Requirements'
-  ];
-
-  for (const h of markerHeaders) {
-    const idx = containerText.indexOf(h);
-    if (idx !== -1) {
-      return containerText.slice(idx, idx + 6000);
-    }
-  }
-
-  if (containerText && containerText.length > 100) {
-    return containerText.slice(0, 6000);
-  }
-
-  return document.body?.innerText?.slice(1000, 7000) || '';
-}
-
-// ── In-Feed Card Extractor ──
-function extractJobInfo(card) {
-  let title = '';
-  let company = '';
-  let location = '';
-
+  // 1. LinkedIn Extraction
   if (isLinkedIn) {
-    const titleEl = card.querySelector(
-      '.job-card-list__title--link, .job-card-list__title, .artdeco-entity-lockup__title, a.job-card-container__link, strong, h3, a[href*="/jobs/view/"]'
+    // Title from detail pane
+    title = (detailPane || document).querySelector(
+      '.job-details-jobs-unified-top-card__job-title, .jobs-unified-top-card__job-title, h1.job-details-jobs-unified-top-card__job-title, h2.job-details-jobs-unified-top-card__job-title, h1.t-24, h2.t-24, [data-view-name="job-details-top-card"] h1, [data-view-name="job-details-top-card"] h2, .jobs-details__top-card h1, .jobs-details__top-card h2, h1'
+    )?.innerText?.trim() || '';
+
+    // If detail pane title missing, check active card in list
+    if (!title) {
+      const activeCard = document.querySelector(
+        '.jobs-search-results-list__list-item--active, [data-occludable-job-id].active'
+      );
+      title = activeCard?.querySelector(
+        '.job-card-list__title--link, .job-card-list__title, .artdeco-entity-lockup__title, strong, h3'
+      )?.innerText?.trim() || '';
+    }
+
+    // Fallback: document.title
+    if (!title && document.title) {
+      const cleanDocTitle = document.title.split(/ [|\-–—] /)[0]?.trim();
+      if (cleanDocTitle && !cleanDocTitle.includes('Jobs') && !cleanDocTitle.includes('LinkedIn')) {
+        title = cleanDocTitle;
+      }
+    }
+
+    // Company from detail pane
+    company = (detailPane || document).querySelector(
+      '.job-details-jobs-unified-top-card__company-name, .jobs-unified-top-card__company-name, [data-anonymize="company-name"], a.ember-view.t-black--light, .job-details-jobs-unified-top-card a[href*="/company/"]'
+    )?.innerText?.trim() || '';
+
+    if (!company) {
+      const activeCard = document.querySelector(
+        '.jobs-search-results-list__list-item--active, [data-occludable-job-id].active'
+      );
+      company = activeCard?.querySelector(
+        '.job-card-container__primary-description, .artdeco-entity-lockup__subtitle'
+      )?.innerText?.trim() || '';
+    }
+
+    location = (detailPane || document).querySelector(
+      '.job-details-jobs-unified-top-card__bullet, .jobs-unified-top-card__bullet, .jobs-unified-top-card__workplace-type'
+    )?.innerText?.trim() || 'Detected Listing';
+
+    const descEl = (detailPane || document).querySelector(
+      '#job-details, .jobs-description__content, .jobs-description-content__text, [data-view-name="job-details-component"], .jobs-box__html-content, article.jobs-description__container, article'
     );
-    const compEl = card.querySelector(
-      '.job-card-container__primary-description, .artdeco-entity-lockup__subtitle, .job-card-container__company-name'
-    );
-    const locEl = card.querySelector(
-      '.job-card-container__metadata-item, .artdeco-entity-lockup__caption'
-    );
-    title = titleEl?.innerText?.trim() || '';
-    company = compEl?.innerText?.trim() || '';
-    location = locEl?.innerText?.trim() || '';
-  } else if (isIndeed) {
-    const titleEl = card.querySelector('h2.jobTitle, a[data-jk]');
-    const compEl = card.querySelector('[data-testid="company-name"], .companyName');
-    const locEl = card.querySelector('[data-testid="text-location"], .companyLocation');
-    title = titleEl?.innerText?.trim() || '';
-    company = compEl?.innerText?.trim() || '';
-    location = locEl?.innerText?.trim() || '';
-  } else if (isWellfound) {
-    const titleEl = card.querySelector('h2, [data-test="JobTitle"], .styles_title__');
-    const compEl = card.querySelector('h1, [data-test="StartupName"], .styles_header__');
-    title = titleEl?.innerText?.trim() || '';
-    company = compEl?.innerText?.trim() || '';
-  } else if (isYC) {
-    const titleEl = card.querySelector('.job-name, .role-title');
-    const compEl = card.querySelector('.company-name, h2');
-    title = titleEl?.innerText?.trim() || '';
-    company = compEl?.innerText?.trim() || '';
+    description = descEl?.innerText?.trim() || '';
+  }
+  // 2. Indeed Extraction
+  else if (isIndeed) {
+    title = document.querySelector('h2.jobTitle, .jobsearch-JobInfoHeader-title, h1')?.innerText?.trim() || '';
+    company = document.querySelector('[data-testid="inlineHeader-companyName"], .companyName')?.innerText?.trim() || '';
+    location = document.querySelector('[data-testid="inlineHeader-companyLocation"]')?.innerText?.trim() || '';
+    const descEl = document.querySelector('#jobDescriptionText, .jobsearch-JobComponent-description');
+    description = descEl?.innerText?.trim() || '';
+  }
+  // 3. Wellfound / AngelList
+  else if (isWellfound) {
+    title = document.querySelector('h1, h2, [data-test="JobTitle"]')?.innerText?.trim() || '';
+    company = document.querySelector('[data-test="StartupName"], .styles_header__')?.innerText?.trim() || '';
+    const descEl = document.querySelector('.styles_description__, [data-test="JobDescription"]');
+    description = descEl?.innerText?.trim() || '';
+  }
+  // 4. Other Platforms
+  else {
+    title = document.querySelector('h1.app-title, .posting-headline h2, h1')?.innerText?.trim() || '';
+    company = document.querySelector('.company-name, .posting-headline .company, meta[property="og:site_name"]')?.innerText?.trim() || '';
+    const descEl = document.querySelector('#content, .section-wrapper, .job-description, [data-qa="job-description"], main, article');
+    description = descEl?.innerText?.trim() || '';
   }
 
-  return { title, company, location };
+  // Fallbacks
+  if (!title) {
+    const raw = document.title || '';
+    title = raw.split(/ [|\-–—] /)[0]?.trim() || 'Software Engineer';
+  }
+  if (!company) company = 'Detected Company';
+  if (!location) location = 'Remote / Hybrid';
+  if (!description || description.length < 50) {
+    description = (detailPane || document.body)?.innerText?.slice(0, 5000) || 'Job description context.';
+  }
+
+  const jobId = getActiveJobIdFromPage() || `${title}::${company}`;
+  return { jobId, title, company, location, description };
 }
 
-
-
-// ── Floating Corner Pill for Continuous Visibility ──
+// ── Floating Corner HUD Pill ──
 function renderFloatingPill(data, verdictTitle, verdictColor, reqExp, candExp) {
   let pill = document.getElementById('careerradar-floating-pill');
   if (!pill) {
     pill = document.createElement('div');
     pill.id = 'careerradar-floating-pill';
-    pill.style.cssText = `
-      position: fixed;
-      top: 64px;
-      right: 20px;
-      z-index: 99999999;
-      background: #09090b;
-      color: #fafafa;
-      border: 1px solid #27272a;
-      border-radius: 9999px;
-      padding: 6px 14px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      font-size: 11px;
-      box-shadow: 0 4px 16px rgba(0,0,0,0.25);
-      cursor: pointer;
-      transition: transform 0.15s ease, opacity 0.15s ease;
-    `;
     pill.title = 'Click to view CareerRadar breakdown';
     pill.addEventListener('click', () => {
       const banner = document.getElementById('careerradar-onscreen-banner');
       if (banner) {
         banner.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      } else {
+        const drawer = document.getElementById('careerradar-inpage-drawer');
+        if (drawer) drawer.classList.add('open');
       }
     });
     document.body.appendChild(pill);
@@ -220,43 +216,24 @@ function renderFloatingPill(data, verdictTitle, verdictColor, reqExp, candExp) {
   `;
 }
 
-// ── Floating Pill Loading State ──
 function renderFloatingPillLoading(title = '') {
   let pill = document.getElementById('careerradar-floating-pill');
   if (!pill) {
     pill = document.createElement('div');
     pill.id = 'careerradar-floating-pill';
-    pill.style.cssText = `
-      position: fixed;
-      top: 64px;
-      right: 20px;
-      z-index: 99999999;
-      background: #09090b;
-      color: #fafafa;
-      border: 1px solid #27272a;
-      border-radius: 9999px;
-      padding: 6px 14px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      font-size: 11px;
-      box-shadow: 0 4px 16px rgba(0,0,0,0.25);
-      cursor: pointer;
-      transition: transform 0.15s ease, opacity 0.15s ease;
-    `;
     document.body.appendChild(pill);
   }
 
+  const display = title ? title.slice(0, 24) : 'Fit';
   pill.innerHTML = `
     <span class="careerradar-spin" style="font-size:12px; color:#a1a1aa;">⬡</span>
     <span style="font-weight:600; font-family:ui-monospace, monospace; font-size:11px; color:#d4d4d8;">
-      Arbitrating ${title ? title.slice(0, 22) : 'Fit'}...
+      Arbitrating ${display}...
     </span>
   `;
 }
 
-// ── Apollo / SignalHire Sticky Edge Dock & In-Page Drawer ──
+// ── Apollo / SignalHire Sticky Right Dock & Slide Drawer ──
 function injectApolloDockAndDrawer() {
   if (document.getElementById('careerradar-dock-tab')) return;
 
@@ -427,7 +404,7 @@ function injectApolloDockAndDrawer() {
   });
 
   drawer.querySelector('#drawer-btn-chrome-sp')?.addEventListener('click', () => {
-    chrome.runtime.sendMessage({ type: 'OPEN_SIDE_PANEL' }).catch(() => {});
+    safeSendMessage({ type: 'OPEN_SIDE_PANEL' });
   });
 
   const pContent = drawer.querySelector('#drawer-profile-content');
@@ -450,17 +427,17 @@ function injectApolloDockAndDrawer() {
   });
 
   // Populate candidate profile info in drawer
-  chrome.storage.local.get(['customMetadata', 'customResume']).then(({ customMetadata, customResume }) => {
+  chrome.storage?.local?.get(['customMetadata', 'customResume'], ({ customMetadata, customResume }) => {
     const nameEl = drawer.querySelector('#drawer-profile-name');
     const subEl = drawer.querySelector('#drawer-profile-sub');
     const yearsInput = drawer.querySelector('#drawer-years');
     if (customMetadata && customResume) {
-      if (nameEl) nameEl.innerText = customResume.name || 'Gaurav · IIT Mandi';
+      if (nameEl) nameEl.innerText = customResume.name || 'Candidate Profile';
       const expStr = customMetadata.calculatedYears ? `${customMetadata.calculatedYears} yrs` : '1.5 yrs';
       if (subEl) subEl.innerText = `${expStr} · ${customMetadata.roles?.[0] || 'Backend & Systems'}`;
       if (yearsInput) yearsInput.value = customMetadata.calculatedYears || 1.5;
     }
-  }).catch(() => {});
+  });
 
   // Drawer file upload handler
   drawer.querySelector('#drawer-resume-input')?.addEventListener('change', async (e) => {
@@ -472,14 +449,14 @@ function injectApolloDockAndDrawer() {
       const res = await fetch(`${BACKEND_URL}/api/upload-resume`, { method: 'POST', body: formData });
       const data = await res.json();
       if (data.candidate) {
-        await chrome.storage.local.set({
+        safeStorageSet({
           customResume: data.candidate,
           customResumeText: data.rawText || '',
           customMetadata: data.metadata || {},
           activePersona: 'custom'
         });
         toggleDrawerP(false);
-        triggerAutoEvaluation(true);
+        evaluateActiveJob(true);
       }
     } catch {}
   });
@@ -487,32 +464,35 @@ function injectApolloDockAndDrawer() {
   drawer.querySelector('#drawer-btn-save-profile')?.addEventListener('click', async () => {
     const yearsInput = drawer.querySelector('#drawer-years');
     const years = yearsInput?.value ? Number(yearsInput.value) : undefined;
-    const { customResumeText } = await chrome.storage.local.get('customResumeText');
-    if (customResumeText) {
-      const res = await fetch(`${BACKEND_URL}/api/parse-resume`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: customResumeText, years })
-      });
-      const d = await res.json();
-      if (d.candidate) {
-        await chrome.storage.local.set({
-          customResume: d.candidate,
-          customMetadata: d.metadata || {},
-          activePersona: 'custom'
-        });
-        toggleDrawerP(false);
-        triggerAutoEvaluation(true);
+    chrome.storage?.local?.get('customResumeText', async ({ customResumeText }) => {
+      if (customResumeText) {
+        try {
+          const res = await fetch(`${BACKEND_URL}/api/parse-resume`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text: customResumeText, years })
+          });
+          const d = await res.json();
+          if (d.candidate) {
+            safeStorageSet({
+              customResume: d.candidate,
+              customMetadata: d.metadata || {},
+              activePersona: 'custom'
+            });
+            toggleDrawerP(false);
+            evaluateActiveJob(true);
+          }
+        } catch {}
       }
-    }
+    });
   });
 }
 
-// ── Instant Loading State (Zero False Screens) ──
+// ── Render Immediate Loading State ──
 function showImmediateLoadingState(title = '', company = '', jobId = null) {
-  // Ensure Apollo dock exists
   injectApolloDockAndDrawer();
 
+  // 1. On-Screen Banner Loading Skeleton
   const detailPane = document.querySelector(
     '.jobs-search__job-details, .scaffold-layout__detail, .job-view-layout, .jobs-details, [data-view-name="job-details-component"], .jobsearch-JobComponent, main, article'
   ) || document.body;
@@ -521,28 +501,18 @@ function showImmediateLoadingState(title = '', company = '', jobId = null) {
   if (!banner) {
     banner = document.createElement('div');
     banner.id = 'careerradar-onscreen-banner';
-    const topTarget = detailPane.querySelector(
-      '.job-details-jobs-unified-top-card__content--two-pane, .jobs-unified-top-card__content--two-pane, .job-details-jobs-unified-top-card, .jobs-unified-top-card, .jobs-details__top-card, .jobsearch-JobInfoHeader-title, h1'
-    ) || detailPane.firstElementChild;
-    if (topTarget) {
+    const topTarget = (detailPane || document).querySelector(
+      '.job-details-jobs-unified-top-card__content--two-pane, .jobs-unified-top-card__content--two-pane, .job-details-jobs-unified-top-card, .jobs-unified-top-card, .jobs-details__top-card, [data-view-name="job-details-top-card"], .jobsearch-JobInfoHeader-title, h1, h2'
+    );
+    if (topTarget && topTarget.parentNode) {
       topTarget.insertAdjacentElement('afterend', banner);
-    } else {
+    } else if (detailPane) {
       detailPane.prepend(banner);
     }
   }
 
   banner.className = 'careerradar-banner-loading cr-card';
-  banner.style.cssText = `
-    margin: 12px 0 16px 0;
-    padding: 14px 16px;
-    background: #ffffff;
-    border: 1px solid #e4e4e7;
-    border-radius: 10px;
-    box-shadow: 0 1px 4px rgba(0,0,0,0.05);
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    color: #09090b;
-    z-index: 999999;
-  `;
+  banner.style.display = 'block';
 
   const displayTitle = title ? title.slice(0, 36) : 'Job Opening';
   banner.innerHTML = `
@@ -568,10 +538,10 @@ function showImmediateLoadingState(title = '', company = '', jobId = null) {
     <div class="careerradar-skeleton-shimmer" style="width:60%; height:12px;"></div>
   `;
 
-  // Update floating corner pill
+  // 2. Floating Corner Pill
   renderFloatingPillLoading(title);
 
-  // Update in-page drawer
+  // 3. In-Page Slide Drawer
   const dSkel = document.getElementById('drawer-skeleton');
   const dCard = document.getElementById('drawer-verdict-card');
   const dTitle = document.getElementById('drawer-job-title');
@@ -583,7 +553,7 @@ function showImmediateLoadingState(title = '', company = '', jobId = null) {
   if (dComp) dComp.innerText = company || 'Evaluating fit...';
   if (dockBadge) dockBadge.innerText = '...';
 
-  // Notify side panel & storage defensively
+  // 4. Notify Side Panel & Storage Defensively
   safeStorageSet({
     activeJobEvaluating: { title, company, jobId, timestamp: Date.now() }
   });
@@ -595,45 +565,7 @@ function showImmediateLoadingState(title = '', company = '', jobId = null) {
   });
 }
 
-// ── Smart Detail Pane Watcher ──
-function waitForDetailPaneAndEvaluate(targetJobId, targetTitle, targetCompany) {
-  if (currentEvaluationTimer) clearInterval(currentEvaluationTimer);
-  lastScannedJobId = targetJobId; // Lock immediately to prevent re-triggering loop!
-
-  let attempts = 0;
-  const maxAttempts = 10; // 10 * 100ms = 1s max wait
-
-  currentEvaluationTimer = setInterval(() => {
-    attempts++;
-    const currentJobId = getActiveJobIdFromPage();
-    const detailPane = document.querySelector(
-      '.jobs-search__job-details, .scaffold-layout__detail, .job-view-layout, .jobs-details, [data-view-name="job-details-component"], .jobsearch-JobComponent, main, article'
-    );
-    const paneTitle = detailPane?.querySelector(
-      '.job-details-jobs-unified-top-card__job-title, .jobs-unified-top-card__job-title, h1.t-24, .jobs-details__top-card h1, h1'
-    )?.innerText?.trim() || '';
-    const desc = extractFullJobDescription();
-
-    const titleMatches = targetTitle && paneTitle && (
-      paneTitle.toLowerCase().includes(targetTitle.toLowerCase().slice(0, 10)) ||
-      targetTitle.toLowerCase().includes(paneTitle.toLowerCase().slice(0, 10))
-    );
-    const idMatches = targetJobId && currentJobId === targetJobId;
-    const hasSubstantialContent = desc && desc.length > 80;
-
-    if ((idMatches || titleMatches || attempts >= 3) && hasSubstantialContent) {
-      clearInterval(currentEvaluationTimer);
-      currentEvaluationTimer = null;
-      updateActiveJobBanner(true, targetJobId || currentJobId, paneTitle || targetTitle, targetCompany);
-    } else if (attempts >= maxAttempts) {
-      clearInterval(currentEvaluationTimer);
-      currentEvaluationTimer = null;
-      updateActiveJobBanner(true, targetJobId || currentJobId, paneTitle || targetTitle, targetCompany);
-    }
-  }, 100);
-}
-
-// ── Render Evaluated Verdict Banner ──
+// ── Render Evaluated Verdict ──
 function renderVerdictBanner(data, title, company, location, description, jobId) {
   const isCanApply = data.verdict === 'can_apply';
   const isReach = data.verdict === 'reach_apply';
@@ -743,7 +675,7 @@ function renderVerdictBanner(data, title, company, location, description, jobId)
     `;
   }
 
-  // 2. Update Floating HUD Pill
+  // 2. Update Floating Corner Pill
   const verdictPillColor = isCanApply ? '#10b981' : (isReach ? '#f59e0b' : '#f43f5e');
   renderFloatingPill(data, verdictTitle, verdictPillColor, reqExp, candExp);
 
@@ -835,164 +767,181 @@ function renderVerdictBanner(data, title, company, location, description, jobId)
   });
 }
 
-// ── Prominent TypeSafe On-Screen Banner on Active Job View ──
-async function updateActiveJobBanner(force = false, hintJobId = null, hintTitle = null, hintCompany = null) {
-  let title = hintTitle || '';
-  let company = hintCompany || '';
-  let location = '';
+// ── Render Error State ──
+function renderErrorState(errorMessage = '') {
+  safeStorageSet({ activeJobEvaluating: null });
 
-  if (!title || !company) {
-    if (isLinkedIn) {
-      title = title || document.querySelector(
-        '.job-details-jobs-unified-top-card__job-title, .jobs-unified-top-card__job-title, h1.t-24, .jobs-details__top-card h1, h1'
-      )?.innerText?.trim() || '';
+  const banner = document.getElementById('careerradar-onscreen-banner');
+  if (banner) {
+    banner.className = 'cr-card';
+    banner.innerHTML = `
+      <div style="display:flex; justify-content:space-between; align-items:center; color:#991b1b; font-size:12px;">
+        <div style="display:flex; align-items:center; gap:6px;">
+          <span>⚠</span>
+          <strong>CareerRadar Notice:</strong> ${errorMessage || 'Ensure local server is running on http://localhost:3001'}
+        </div>
+        <button id="cr-retry-btn" class="cr-btn-ghost" style="font-size:11px; padding:2px 8px; border:1px solid #fca5a5;">
+          Retry
+        </button>
+      </div>
+    `;
+    banner.querySelector('#cr-retry-btn')?.addEventListener('click', () => {
+      evaluateActiveJob(true);
+    });
+  }
 
-      company = company || document.querySelector(
-        '.job-details-jobs-unified-top-card__company-name, .jobs-unified-top-card__company-name, a.ember-view.t-black--light, .job-card-container__primary-description, .job-details-jobs-unified-top-card a[href*="/company/"]'
-      )?.innerText?.trim() || '';
+  const dSkel = document.getElementById('drawer-skeleton');
+  const dCard = document.getElementById('drawer-verdict-card');
+  if (dSkel) dSkel.style.display = 'none';
+  if (dCard) {
+    dCard.style.display = 'block';
+    const dSumm = document.getElementById('drawer-summary-text');
+    if (dSumm) dSumm.innerText = errorMessage || 'Could not connect to local arbitrator server at http://localhost:3001.';
+  }
 
-      location = document.querySelector(
-        '.job-details-jobs-unified-top-card__bullet, .jobs-unified-top-card__bullet, .jobs-unified-top-card__workplace-type'
-      )?.innerText?.trim() || '';
-    } else if (isIndeed) {
-      title = title || document.querySelector('h2.jobTitle, .jobsearch-JobInfoHeader-title, h1')?.innerText?.trim() || '';
-      company = company || document.querySelector('[data-testid="inlineHeader-companyName"], .companyName')?.innerText?.trim() || '';
-      location = document.querySelector('[data-testid="inlineHeader-companyLocation"]')?.innerText?.trim() || '';
-    } else if (isWellfound) {
-      title = title || document.querySelector('h1, h2, [data-test="JobTitle"]')?.innerText?.trim() || '';
-      company = company || document.querySelector('[data-test="StartupName"], .styles_header__')?.innerText?.trim() || '';
-    } else {
-      title = title || document.querySelector('h1.app-title, .posting-headline h2, h1')?.innerText?.trim() || document.title;
-      company = company || document.querySelector('.company-name, .posting-headline .company, meta[property="og:site_name"]')?.innerText?.trim() || window.location.hostname.replace('www.', '');
+  const pill = document.getElementById('careerradar-floating-pill');
+  if (pill) {
+    pill.innerHTML = `
+      <span style="color:#f87171;">⚠</span>
+      <span style="font-size:11px; font-family:ui-monospace, monospace; color:#d4d4d8;">Server Offline</span>
+    `;
+  }
+}
+
+// ── Master Job Evaluation Core ──
+async function evaluateActiveJob(force = false) {
+  const details = extractActiveJobDetails();
+  const jobId = details.jobId;
+
+  // 1. Skip if already evaluated this exact job
+  if (!force && jobId && jobId === lastEvaluatedJobId) {
+    return;
+  }
+
+  // 2. Prevent self-aborting / overlapping loops for the same job!
+  if (isEvaluating && jobId && jobId === activeJobId) {
+    return;
+  }
+
+  // 3. If scanning an old job and user switched to a new job, abort the old request
+  if (isEvaluating && inflightController) {
+    inflightController.abort();
+  }
+
+  isEvaluating = true;
+  activeJobId = jobId;
+
+  // Render immediate loading state
+  showImmediateLoadingState(details.title, details.company, jobId);
+
+  inflightController = new AbortController();
+  const currentSignal = inflightController.signal;
+
+  // 14-second network timeout guard
+  const timeoutId = setTimeout(() => {
+    if (isEvaluating && activeJobId === jobId) {
+      inflightController?.abort();
     }
-  }
-
-  if (!title || title.length < 3) return;
-
-  const jobId = hintJobId || getActiveJobIdFromPage() || `${title}::${company}`;
-  if (!force && lastScannedJobId === jobId) return;
-  lastScannedJobId = jobId;
-
-  // Make sure loading state is rendered immediately on screen
-  showImmediateLoadingState(title, company, jobId);
-
-  const description = extractFullJobDescription();
-  const { activePersona, customResume } = await getActiveCandidate();
-
-  if (currentInflightController) {
-    currentInflightController.abort();
-  }
-  currentInflightController = new AbortController();
+  }, 14000);
 
   try {
+    const { activePersona, customResume } = await getActiveCandidate();
+
     const res = await fetch(`${BACKEND_URL}/api/scan-job`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      signal: currentInflightController.signal,
+      signal: currentSignal,
       body: JSON.stringify({
         job: {
           id: jobId,
-          title,
-          company,
-          location,
-          description,
-          coreMission: description.slice(0, 500),
-          engineeringDemands: description.slice(0, 500)
+          title: details.title,
+          company: details.company,
+          location: details.location,
+          description: details.description,
+          coreMission: details.description.slice(0, 500),
+          engineeringDemands: details.description.slice(0, 500)
         },
         resume: activePersona,
         customResume
       })
     });
 
-    if (!res.ok) throw new Error('Evaluation failed');
+    clearTimeout(timeoutId);
+
+    if (!res.ok) {
+      const errJson = await res.json().catch(() => ({}));
+      throw new Error(errJson.error || `Server responded with status ${res.status}`);
+    }
+
     const data = await res.json();
 
-    renderVerdictBanner(data, title, company, location, description, jobId);
+    // Discard if user already clicked another job while waiting
+    if (activeJobId !== jobId) return;
+
+    lastEvaluatedJobId = jobId;
+    isEvaluating = false;
+
+    renderVerdictBanner(data, details.title, details.company, details.location, details.description, jobId);
   } catch (err) {
-    if (err.name === 'AbortError') return;
-    const banner = document.getElementById('careerradar-onscreen-banner');
-    if (banner) {
-      banner.innerHTML = `
-        <div style="font-size:11px; color:#71717a; font-family:ui-monospace, monospace;">
-          CareerRadar: Ensure local server is active at http://localhost:3001
-        </div>
-      `;
+    clearTimeout(timeoutId);
+
+    // If aborted because a new job was clicked, let the new job run
+    if (err.name === 'AbortError' && activeJobId !== jobId) {
+      return;
     }
+
+    isEvaluating = false;
+    renderErrorState(err.message || 'Evaluation request failed.');
   }
 }
 
-
-
-function triggerAutoEvaluation(force = false) {
+// ── Debounced Trigger Helper ──
+function triggerDebouncedScan(force = false, delayMs = 180) {
   if (scanDebounceTimer) clearTimeout(scanDebounceTimer);
   scanDebounceTimer = setTimeout(() => {
-    updateActiveJobBanner(force);
-  }, 150);
+    evaluateActiveJob(force);
+  }, delayMs);
 }
 
+// ── Watchdogs & Event System ──
 function initWatchdogs() {
-  // 1. Ensure Apollo sticky dock and drawer are always present
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', injectApolloDockAndDrawer);
-  } else {
-    injectApolloDockAndDrawer();
-  }
+  injectApolloDockAndDrawer();
 
-  // 2. Capture user clicks on job items anywhere in the document
+  // 1. Capture user clicks on job listings anywhere
   document.addEventListener('click', (e) => {
     const jobClick = e.target.closest(
       '.jobs-search-results__list-item, .job-card-container, .jobs-search-results-list__list-item, [data-occludable-job-id], [data-job-id], a[href*="/jobs/view/"], .scaffold-layout__list-item'
     );
     if (jobClick) {
-      const cardInfo = extractJobInfo(jobClick);
-      const clickedJobId = jobClick.getAttribute('data-job-id') ||
-                           jobClick.getAttribute('data-occludable-job-id') ||
-                           jobClick.querySelector('a[href*="/jobs/view/"]')?.href?.match(/\/jobs\/view\/(\d+)/)?.[1] ||
-                           jobClick.querySelector('a[href*="currentJobId="]')?.href?.match(/currentJobId=(\d+)/)?.[1];
-
-      if (clickedJobId && clickedJobId === lastScannedJobId) {
-        return; // Already actively evaluating or evaluated
-      }
-
-      if (currentInflightController) {
-        currentInflightController.abort();
-      }
-
-      lastScannedJobId = clickedJobId || cardInfo.title;
-      showImmediateLoadingState(cardInfo.title, cardInfo.company, clickedJobId);
-      waitForDetailPaneAndEvaluate(clickedJobId, cardInfo.title, cardInfo.company);
+      triggerDebouncedScan(false, 150);
     }
   }, true);
 
-  // 3. Watch URL and Job ID changes every 400ms
+  // 2. Watch URL and Job ID changes every 400ms
   setInterval(() => {
     const currentUrl = window.location.href;
     const currentJobId = getActiveJobIdFromPage();
-    if (currentJobId && currentJobId !== lastScannedJobId) {
-      lastScannedJobId = currentJobId;
+
+    if (currentJobId && currentJobId !== lastEvaluatedJobId && (!isEvaluating || currentJobId !== activeJobId)) {
       lastKnownUrl = currentUrl;
-      const detailPane = document.querySelector(
-        '.jobs-search__job-details, .scaffold-layout__detail, .job-view-layout, .jobs-details, [data-view-name="job-details-component"], .jobsearch-JobComponent, main, article'
-      );
-      const title = detailPane?.querySelector('h1, h2.jobTitle, .job-details-jobs-unified-top-card__job-title')?.innerText?.trim() || '';
-      showImmediateLoadingState(title, '', currentJobId);
-      waitForDetailPaneAndEvaluate(currentJobId, title, '');
+      triggerDebouncedScan(false, 100);
     } else if (currentUrl !== lastKnownUrl) {
       lastKnownUrl = currentUrl;
+      triggerDebouncedScan(false, 100);
     }
   }, 400);
 
-  // 4. Listen to service worker navigation relay or side panel trigger
+  // 3. Service worker & side panel message listener
   chrome.runtime.onMessage.addListener((msg) => {
     if (msg.type === 'URL_NAVIGATED' || msg.type === 'FORCE_SCAN_JOB') {
-      updateActiveJobBanner(true);
+      triggerDebouncedScan(true, 50);
     }
   });
 
-  // Initial trigger
+  // 4. Initial trigger after page load
   setTimeout(() => {
-    updateActiveJobBanner(true);
-  }, 400);
+    evaluateActiveJob(true);
+  }, 350);
 }
 
 // Start immediately

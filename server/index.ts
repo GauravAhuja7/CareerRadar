@@ -433,7 +433,18 @@ app.post('/api/scan-job', async (req, res) => {
     return res.status(400).json({ error: 'Job listing object is required' });
   }
 
-  const candidate: CandidateResume = customResume || (resume && PERSONAS[resume]) || PERSONAS['alex'];
+  const fallbackCandidate = (resume && PERSONAS[resume]) || PERSONAS['alex'];
+  const candidate: CandidateResume = {
+    ...fallbackCandidate,
+    ...(customResume || {}),
+    name: customResume?.name || fallbackCandidate.name || 'Candidate',
+    experienceYears: customResume?.experienceYears ?? fallbackCandidate.experienceYears ?? 1.5,
+    seniorityTier: customResume?.seniorityTier || fallbackCandidate.seniorityTier || 'Mid-Level',
+    primaryTechnicalDomains: (customResume?.primaryTechnicalDomains && customResume.primaryTechnicalDomains.length)
+      ? customResume.primaryTechnicalDomains
+      : fallbackCandidate.primaryTechnicalDomains,
+    fullResumeText: customResume?.fullResumeText || fallbackCandidate.fullResumeText || ''
+  };
   const t0 = Date.now();
 
   try {
@@ -442,30 +453,31 @@ app.post('/api/scan-job', async (req, res) => {
     const expInfo = subagent.expInfo;
 
     // Extract matched skills and domain nuances
-    const fullJobText = `${job.title} ${job.company} ${job.description || ''} ${job.coreMission || ''} ${job.engineeringDemands || ''}`;
+    const fullJobText = `${job.title || ''} ${job.company || ''} ${job.description || ''} ${job.coreMission || ''} ${job.engineeringDemands || ''}`;
     const matchedDeliverables: string[] = [];
     const domainGaps: string[] = [];
+    const resumeText = candidate.fullResumeText || '';
 
-    if (/kafka|message queue|event-driven/i.test(fullJobText) && /kafka/i.test(candidate.fullResumeText)) {
+    if (/kafka|message queue|event-driven/i.test(fullJobText) && /kafka/i.test(resumeText)) {
       matchedDeliverables.push('Kafka & Event-Driven Pipelines (Direct production match)');
     }
-    if (/aws|cloud|s3|rds|redis/i.test(fullJobText) && /aws/i.test(candidate.fullResumeText)) {
+    if (/aws|cloud|s3|rds|redis/i.test(fullJobText) && /aws/i.test(resumeText)) {
       matchedDeliverables.push('AWS Cloud-Native Architecture & Caching (Direct match)');
     }
-    if (/concurrency|websocket|throughput|scale|real-time/i.test(fullJobText) && /concurrency|websocket|throughput/i.test(candidate.fullResumeText)) {
+    if (/concurrency|websocket|throughput|scale|real-time/i.test(fullJobText) && /concurrency|websocket|throughput/i.test(resumeText)) {
       matchedDeliverables.push('High-Concurrency & WebSocket Systems (1000+ connections match)');
     }
-    if (/ai|cursor|copilot|claude|llm|python/i.test(fullJobText) && /ai|catboost|openai|ml|python/i.test(candidate.fullResumeText)) {
+    if (/ai|cursor|copilot|claude|llm|python/i.test(fullJobText) && /ai|catboost|openai|ml|python/i.test(resumeText)) {
       matchedDeliverables.push('AI Product Development & Python/ML Tools (Direct match)');
     }
-    if (/api|rest|microservice/i.test(fullJobText) && /rest|api|microservice|trpc/i.test(candidate.fullResumeText)) {
+    if (/api|rest|microservice/i.test(fullJobText) && /rest|api|microservice|trpc/i.test(resumeText)) {
       matchedDeliverables.push('Backend API Contracts & Service Architecture');
     }
 
-    if (/video|streaming|cdn|hls|drm/i.test(fullJobText) && !/streaming|drm|hls/i.test(candidate.fullResumeText)) {
+    if (/video|streaming|cdn|hls|drm/i.test(fullJobText) && !/streaming|drm|hls/i.test(resumeText)) {
       domainGaps.push('Video Streaming & CDN/DRM Protocols (Media domain learning curve)');
     }
-    if (/embedded|hardware|c\+\+|firmware/i.test(fullJobText) && !/embedded|hardware|firmware/i.test(candidate.fullResumeText)) {
+    if (/embedded|hardware|c\+\+|firmware/i.test(fullJobText) && !/embedded|hardware|firmware/i.test(resumeText)) {
       domainGaps.push('Embedded / Hardware Systems requirement');
     }
 
