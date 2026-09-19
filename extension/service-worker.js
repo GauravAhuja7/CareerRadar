@@ -32,11 +32,27 @@ chrome.runtime.onInstalled.addListener(async () => {
   });
 });
 
-// Relay URL changes to content script (catches SPA navigation like LinkedIn ?currentJobId=)
+// Relay URL changes to content script (catches SPA navigation on LinkedIn, Google Careers, Indeed, etc.)
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   if (tab.active && (changeInfo.url || changeInfo.status === 'complete')) {
-    const url = tab.url || changeInfo.url || '';
-    if (url.includes('linkedin.com/jobs') || url.includes('indeed.com') || url.includes('wellfound.com') || url.includes('workatastartup.com')) {
+    const url = (tab.url || changeInfo.url || '').toLowerCase();
+    if (
+      url.includes('linkedin.com/jobs') ||
+      url.includes('google.com/about/careers') ||
+      url.includes('careers.google.com') ||
+      url.includes('/careers') ||
+      url.includes('/jobs') ||
+      url.includes('currentjobid=') ||
+      url.includes('indeed.com') ||
+      url.includes('wellfound.com') ||
+      url.includes('greenhouse.io') ||
+      url.includes('lever.co') ||
+      url.includes('ashbyhq.com') ||
+      url.includes('workatastartup.com') ||
+      url.includes('myworkdayjobs.com') ||
+      url.includes('amazon.jobs') ||
+      url.includes('smartrecruiters.com')
+    ) {
       chrome.tabs.sendMessage(tabId, { type: 'URL_NAVIGATED', url }).catch(() => {});
     }
   }

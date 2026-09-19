@@ -1,7 +1,8 @@
-// CareerRadar Side Panel Script (Manifest V3) — Modern Minimalist Jev System One
+// CareerRadar Side Panel Script (Manifest V3) — Modern Developer-Grade Decision Engine
 const BACKEND_URL = 'http://localhost:3001';
 
 let currentSidepanelAbortController = null;
+let lastEvaluatedTabUrl = '';
 
 function showLoadingSkeleton(title = '', company = '') {
   const verdictContainer = document.getElementById('verdict-container');
@@ -73,30 +74,32 @@ function updateProfileBarUI(metadata, candidate) {
   const nameEl = document.getElementById('display-profile-name');
 
   const name = candidate?.name && candidate.name !== 'Candidate' && candidate.name !== 'Custom Profile'
-    ? candidate.name
+    ? candidate.name.split(' ')[0]
     : (metadata?.college ? metadata.college.replace('Indian Institute of Technology, ', 'IIT ') : 'My Profile');
 
   const expStr = metadata?.calculatedYears ? `${metadata.calculatedYears} yrs` : '1.5 yrs';
   const roleStr = metadata?.roles?.length ? metadata.roles[0] : 'Backend & Systems';
 
   if (chipText) {
-    chipText.innerText = `👨‍💻 ${name} (${expStr})`;
+    chipText.innerText = `👤 ${name} (${expStr})`;
   }
   if (nameEl) {
-    nameEl.innerText = `${name} · ${expStr} · ${roleStr}`;
+    nameEl.innerText = `${candidate?.name || name} · ${expStr} · ${roleStr}`;
   }
 }
 
 // ── In-Page Scraper Function (Injected into active tab) ──
 function scrapeJobDetailsFromPage() {
-  const host = window.location.hostname;
+  const host = window.location.hostname.toLowerCase();
+  const url = window.location.href.toLowerCase();
+
   let title = '';
   let company = '';
   let location = '';
   let description = '';
 
   const detailPane = document.querySelector(
-    '.jobs-search__job-details, .scaffold-layout__detail, .job-view-layout, .jobs-details, [data-view-name="job-details-component"], .jobsearch-JobComponent, main, article'
+    '.jobs-search__job-details, .scaffold-layout__detail, .job-view-layout, .jobs-details, [data-view-name="job-details-component"], .jobsearch-JobComponent, .gc-job-detail, main, article'
   );
 
   // 1. LinkedIn
@@ -112,13 +115,6 @@ function scrapeJobDetailsFromPage() {
       title = activeCard?.querySelector(
         '.job-card-list__title--link, .job-card-list__title, .artdeco-entity-lockup__title, strong, h3'
       )?.innerText?.trim() || '';
-    }
-
-    if (!title && document.title) {
-      const cleanDocTitle = document.title.split(/ [|\-–—] /)[0]?.trim();
-      if (cleanDocTitle && !cleanDocTitle.includes('Jobs') && !cleanDocTitle.includes('LinkedIn')) {
-        title = cleanDocTitle;
-      }
     }
 
     company = (detailPane || document).querySelector(
@@ -143,7 +139,15 @@ function scrapeJobDetailsFromPage() {
     );
     description = descEl?.innerText?.trim() || '';
   }
-  // 2. Indeed
+  // 2. Google Careers
+  else if (host.includes('google.com') && (url.includes('/careers') || url.includes('/jobs'))) {
+    title = document.querySelector('h1, h2.title, [role="heading"][aria-level="1"], .gc-job-detail__title, .headline-4')?.innerText?.trim() || '';
+    company = 'Google';
+    location = document.querySelector('[aria-label*="Location"], .gc-job-detail__meta, .gc-job-location, [aria-label*="location"]')?.innerText?.trim() || 'Mountain View, CA';
+    const descEl = document.querySelector('[aria-label="Job details"], .gc-job-detail, main, article');
+    description = descEl?.innerText?.trim() || '';
+  }
+  // 3. Indeed
   else if (host.includes('indeed.com')) {
     title = document.querySelector('h2.jobTitle, .jobsearch-JobInfoHeader-title, h1')?.innerText?.trim() || '';
     company = document.querySelector('[data-testid="inlineHeader-companyName"], .companyName')?.innerText?.trim() || '';
@@ -151,14 +155,14 @@ function scrapeJobDetailsFromPage() {
     const descEl = document.querySelector('#jobDescriptionText, .jobsearch-JobComponent-description');
     description = descEl?.innerText?.trim() || '';
   }
-  // 3. Wellfound / AngelList
+  // 4. Wellfound / AngelList
   else if (host.includes('wellfound.com') || host.includes('angel.co')) {
     title = document.querySelector('h1, h2, [data-test="JobTitle"]')?.innerText?.trim() || '';
     company = document.querySelector('[data-test="StartupName"], .styles_header__')?.innerText?.trim() || '';
     const descEl = document.querySelector('.styles_description__, [data-test="JobDescription"]');
     description = descEl?.innerText?.trim() || '';
   }
-  // 4. Other Platforms
+  // 5. General Career Pages
   else {
     title = document.querySelector('h1.app-title, .posting-headline h2, h1')?.innerText?.trim() || '';
     company = document.querySelector('.company-name, .posting-headline .company, meta[property="og:site_name"]')?.innerText?.trim() || '';
@@ -166,14 +170,18 @@ function scrapeJobDetailsFromPage() {
     description = descEl?.innerText?.trim() || '';
   }
 
-  // Fallbacks
-  if (!title) {
-    const raw = document.title || '';
-    title = raw.split(/ [|\-–—] /)[0]?.trim() || 'Software Engineer';
+  // Guaranteed clean fallbacks
+  if (!title && document.title) {
+    const cleanDocTitle = document.title.split(/ [|\-–—] /)[0]?.trim();
+    if (cleanDocTitle && !cleanDocTitle.includes('Jobs') && !cleanDocTitle.includes('Careers')) {
+      title = cleanDocTitle;
+    }
   }
+
+  if (!title) title = 'Software Engineer Opportunity';
   if (!company) company = 'Detected Company';
   if (!location) location = 'Remote / Hybrid';
-  if (!description || description.length < 50) {
+  if (!description || description.length < 40) {
     description = (detailPane || document.body)?.innerText?.slice(0, 5000) || 'Job description context.';
   }
 
@@ -188,7 +196,6 @@ async function evaluateCurrentTab() {
   const tab = await getActiveTab();
   if (!tab || !tab.id) {
     hideLoadingSkeleton();
-    showError('No active browser tab found. Navigate to a job listing page.');
     return;
   }
 
@@ -214,7 +221,7 @@ async function evaluateCurrentTab() {
       });
       scraped = execution?.result;
     } catch {
-      // If scripting execution failed (e.g. on chrome:// pages)
+      // Scripting fallback (e.g., if page restricts injection)
     }
 
     if (!scraped || !scraped.title) {
@@ -332,7 +339,7 @@ function renderVerdict(data, scraped) {
     latencyEl.innerText = `⚡ ${data.ms}ms · ${Math.round((data.verdictConfidence || 0.9) * 100)}% Conf`;
   }
 
-  // Strategic Executive Summary
+  // Strategic Briefing
   const summaryTextEl = document.getElementById('subagent-summary-text');
   if (summaryTextEl) {
     summaryTextEl.innerText = data.subagentSignals?.summaryVerdict || 'Evaluation complete.';
@@ -352,7 +359,7 @@ function renderVerdict(data, scraped) {
   const techScore = Number(data.techScore || 3.0);
   const suitVal = document.getElementById('suitability-val');
   const suitBar = document.getElementById('suitability-bar');
-  if (suitVal) suitVal.innerHTML = `${techScore.toFixed(1)}<span style="font-size:11px; font-weight:normal; color:#71717a;">/4</span>`;
+  if (suitVal) suitVal.innerHTML = `${techScore.toFixed(1)}<span style="font-size:10px; font-weight:normal; color:#71717a;">/4</span>`;
   if (suitBar) {
     suitBar.style.width = `${Math.min(100, (techScore / 4) * 100)}%`;
     suitBar.style.background = techScore >= 2.5 ? '#10b981' : '#f59e0b';
@@ -410,6 +417,40 @@ function renderVerdict(data, scraped) {
   }
 }
 
+// ── Auto-Scan Detection for Any Career Page ──
+function isCareerPageUrl(rawUrl = '') {
+  const url = (rawUrl || '').toLowerCase();
+  return (
+    url.includes('google.com/about/careers') ||
+    url.includes('careers.google.com') ||
+    url.includes('linkedin.com/jobs') ||
+    url.includes('currentjobid=') ||
+    url.includes('/jobs/view/') ||
+    url.includes('indeed.com') ||
+    url.includes('wellfound.com') ||
+    url.includes('workatastartup.com') ||
+    url.includes('greenhouse.io') ||
+    url.includes('lever.co') ||
+    url.includes('ashbyhq.com') ||
+    url.includes('myworkdayjobs.com') ||
+    url.includes('amazon.jobs') ||
+    url.includes('smartrecruiters.com') ||
+    url.includes('/careers') ||
+    url.includes('/jobs') ||
+    url.includes('/positions')
+  );
+}
+
+async function checkAndAutoScanTab(tab) {
+  if (!tab || !tab.url) return;
+  const url = tab.url;
+
+  if (isCareerPageUrl(url) && url !== lastEvaluatedTabUrl) {
+    lastEvaluatedTabUrl = url;
+    evaluateCurrentTab();
+  }
+}
+
 // ── Initialization ──
 async function init() {
   await updateTabContext();
@@ -432,7 +473,7 @@ async function init() {
   btnHideProfile?.addEventListener('click', () => toggleProfileCard(false));
   btnDoneHide?.addEventListener('click', () => toggleProfileCard(false));
 
-  // Quick scan button directly triggers evaluation!
+  // Quick scan button directly triggers evaluation
   refreshBtn?.addEventListener('click', () => {
     evaluateCurrentTab();
   });
@@ -453,10 +494,8 @@ async function init() {
   if (customMetadata && customResume) {
     renderParsedMetadata(customMetadata, customResume);
     updateProfileBarUI(customMetadata, customResume);
-    // Profile is completed! Default to HIDDEN so verdict sits at top fold with zero scrolling!
     if (profileCard) profileCard.style.display = profileHidden ? 'none' : 'block';
   } else {
-    // If no profile exists yet, open card so user can upload resume
     if (profileCard) profileCard.style.display = 'block';
   }
 
@@ -533,7 +572,7 @@ async function init() {
           statusEl.style.display = 'block';
           setTimeout(() => {
             statusEl.style.display = 'none';
-            toggleProfileCard(false); // auto-hide once saved!
+            toggleProfileCard(false);
           }, 1200);
         }
         evaluateCurrentTab();
@@ -594,7 +633,7 @@ async function init() {
           statusEl.style.display = 'block';
           setTimeout(() => {
             statusEl.style.display = 'none';
-            toggleProfileCard(false); // auto-hide so user never scrolls!
+            toggleProfileCard(false);
           }, 1200);
         }
         evaluateCurrentTab();
@@ -608,15 +647,14 @@ async function init() {
     }
   });
 
-  // Restore latest job evaluation immediately from local storage
+  // Check storage on boot
   try {
     const { activeJobEvaluation, activeJobEvaluating } = await chrome.storage.local.get(['activeJobEvaluation', 'activeJobEvaluating']);
 
     if (activeJobEvaluation?.data && activeJobEvaluation?.scraped) {
       renderVerdict(activeJobEvaluation.data, activeJobEvaluation.scraped);
-    } else if (activeJobEvaluating && (Date.now() - activeJobEvaluating.timestamp < 4000)) {
+    } else if (activeJobEvaluating && (Date.now() - activeJobEvaluating.timestamp < 3500)) {
       showLoadingSkeleton(activeJobEvaluating.title, activeJobEvaluating.company);
-      // Safety timeout: if content script hasn't completed after 3.5s, run evaluation directly
       setTimeout(() => {
         const container = document.getElementById('verdict-container');
         if (!container || container.style.display === 'none') {
@@ -624,22 +662,29 @@ async function init() {
         }
       }, 3500);
     } else {
-      // First boot scan
-      setTimeout(evaluateCurrentTab, 250);
+      setTimeout(evaluateCurrentTab, 200);
     }
   } catch {
-    setTimeout(evaluateCurrentTab, 250);
+    setTimeout(evaluateCurrentTab, 200);
   }
 
-  // Listen for tab focus and navigation
-  chrome.tabs.onActivated.addListener(updateTabContext);
-  chrome.tabs.onUpdated.addListener((_tabId, changeInfo) => {
-    if (changeInfo.status === 'complete' || changeInfo.title || changeInfo.url) {
-      updateTabContext();
+  // ── Automatic Scanning on Tab Switch or Navigation ──
+  chrome.tabs.onActivated.addListener(async () => {
+    await updateTabContext();
+    const tab = await getActiveTab();
+    checkAndAutoScanTab(tab);
+  });
+
+  chrome.tabs.onUpdated.addListener(async (_tabId, changeInfo, tab) => {
+    if (changeInfo.status === 'complete' || changeInfo.url) {
+      await updateTabContext();
+      if (tab?.active) {
+        checkAndAutoScanTab(tab);
+      }
     }
   });
 
-  // Auto-listen to real-time evaluations broadcast by content script
+  // Listen for evaluations broadcast from content script
   chrome.runtime.onMessage?.addListener((message) => {
     if (message.type === 'JOB_EVALUATING') {
       showLoadingSkeleton(message.title, message.company);
@@ -656,8 +701,6 @@ async function init() {
       if (changes.activeJobEvaluating?.newValue) {
         const { title, company } = changes.activeJobEvaluating.newValue;
         showLoadingSkeleton(title, company);
-      } else if (changes.activeJobEvaluating && !changes.activeJobEvaluating.newValue) {
-        // Evaluating finished or cancelled
       }
       if (changes.activeJobEvaluation?.newValue) {
         const { data, scraped } = changes.activeJobEvaluation.newValue;

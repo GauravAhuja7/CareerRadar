@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "CareerRadar — Real-Time Job Fit & Decision Arbitrator",
-  "version": "1.5.1",
-  "description": "Ambient job fit arbitrator, experience calculator, and career decision engine powered by TypeSafe Jev System One. Works on LinkedIn, Indeed, Wellfound, YC, Greenhouse, Lever, Ashby, and company career pages.",
+  "version": "1.5.2",
+  "description": "Ambient job fit arbitrator, experience calculator, and career decision engine powered by TypeSafe Jev System One. Works on LinkedIn, Google Careers, Indeed, Wellfound, YC, Greenhouse, Lever, Ashby, and all company career pages.",
   "permissions": [
     "storage",
     "sidePanel",
@@ -26,13 +26,7 @@
   "content_scripts": [
     {
       "matches": [
-        "https://*.linkedin.com/*",
-        "https://*.indeed.com/*",
-        "https://wellfound.com/*",
-        "https://*.workatastartup.com/*",
-        "https://boards.greenhouse.io/*",
-        "https://jobs.lever.co/*",
-        "https://jobs.ashbyhq.com/*"
+        "<all_urls>"
       ],
       "js": ["content.js"],
       "css": ["styles.css"],

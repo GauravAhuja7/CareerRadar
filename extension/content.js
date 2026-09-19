@@ -1,6 +1,6 @@
-// CareerRadar Content Script (LinkedIn, Indeed, Wellfound, YC, Greenhouse, Lever, Ashby)
-// Powered by TypeSafe Jev System One
-console.log('🎯 CareerRadar Active — Ambient Real-Time Job Decision Engine.');
+// CareerRadar Ambient Content Script
+// Works on LinkedIn, Google Careers, Indeed, Wellfound, YC, Greenhouse, Lever, Ashby, and company career pages
+console.log('🎯 CareerRadar Active — Ambient Job Decision Copilot.');
 
 const BACKEND_URL = 'http://localhost:3001';
 
@@ -12,14 +12,50 @@ let inflightController = null;
 let scanDebounceTimer = null;
 let lastKnownUrl = window.location.href;
 
-// Platform Detection
-const host = window.location.hostname;
-const isLinkedIn = host.includes('linkedin.com');
-const isIndeed = host.includes('indeed.com');
-const isWellfound = host.includes('wellfound.com') || host.includes('angel.co');
-const isYC = host.includes('workatastartup.com');
+// ── Check if Page is a Job / Career Page ──
+function isJobPage() {
+  const url = window.location.href.toLowerCase();
+  const host = window.location.hostname.toLowerCase();
 
-// ── Defensive Chrome Extensions API Guards ──
+  // Known job portals & paths
+  if (
+    host.includes('linkedin.com/jobs') ||
+    url.includes('currentjobid=') ||
+    url.includes('/jobs/view/') ||
+    url.includes('google.com/about/careers') ||
+    url.includes('careers.google.com') ||
+    host.includes('indeed.com') ||
+    host.includes('wellfound.com') ||
+    host.includes('angel.co') ||
+    host.includes('workatastartup.com') ||
+    host.includes('greenhouse.io') ||
+    host.includes('lever.co') ||
+    host.includes('ashbyhq.com') ||
+    host.includes('myworkdayjobs.com') ||
+    host.includes('amazon.jobs') ||
+    host.includes('smartrecruiters.com') ||
+    host.includes('icims.com') ||
+    host.includes('jobvite.com') ||
+    url.includes('/careers/') ||
+    url.includes('/jobs/') ||
+    url.includes('/positions/')
+  ) {
+    return true;
+  }
+
+  // DOM heuristics for career pages
+  if (
+    document.querySelector(
+      '.jobs-search__job-details, .scaffold-layout__detail, [data-view-name="job-details-component"], #job-details, .jobsearch-JobComponent, .gc-job-detail, [itemtype*="JobPosting"]'
+    )
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
+// ── Defensive Chrome API Guards ──
 function isExtensionContextValid() {
   try {
     return typeof chrome !== 'undefined' && !!chrome.runtime && !!chrome.runtime.id;
@@ -35,9 +71,7 @@ function safeStorageSet(data) {
         if (chrome.runtime?.lastError) { /* swallow */ }
       });
     }
-  } catch {
-    // Context invalidated
-  }
+  } catch {}
 }
 
 function safeSendMessage(message) {
@@ -47,9 +81,7 @@ function safeSendMessage(message) {
         if (chrome.runtime?.lastError) { /* swallow */ }
       });
     }
-  } catch {
-    // Context invalidated
-  }
+  } catch {}
 }
 
 // ── Candidate Profile Access ──
@@ -66,11 +98,14 @@ async function getActiveCandidate() {
   return { activePersona: 'custom', customResume: null };
 }
 
-// ── Unique Job ID Extractor ──
+// ── Extract Unique Job ID ──
 function getActiveJobIdFromPage() {
   try {
     const url = window.location.href;
-    if (isLinkedIn) {
+    const host = window.location.hostname.toLowerCase();
+
+    // 1. LinkedIn
+    if (host.includes('linkedin.com')) {
       const matchParam = url.match(/[?&]currentJobId=(\d+)/);
       if (matchParam) return matchParam[1];
       const matchPath = url.match(/\/jobs\/view\/(\d+)/);
@@ -81,10 +116,21 @@ function getActiveJobIdFromPage() {
       const cardId = activeCard?.getAttribute('data-job-id') ||
                      activeCard?.getAttribute('data-occludable-job-id');
       if (cardId) return cardId.replace(/[^0-9]/g, '') || cardId;
-    } else if (isIndeed) {
+    }
+    // 2. Google Careers
+    else if (host.includes('google.com') || host.includes('careers.google.com')) {
+      const matchJob = url.match(/results\/(\d+)/) || url.match(/jobs\/(\d+)/);
+      if (matchJob) return `google-${matchJob[1]}`;
+    }
+    // 3. Indeed
+    else if (host.includes('indeed.com')) {
       const matchJk = url.match(/[?&]vjk=([a-zA-Z0-9]+)/);
       if (matchJk) return matchJk[1];
     }
+    // 4. General path matching
+    const matchGeneric = url.match(/\/(jobs|careers|positions)\/([a-zA-Z0-9\-_]+)/);
+    if (matchGeneric) return matchGeneric[2];
+
     return null;
   } catch {
     return null;
@@ -93,23 +139,24 @@ function getActiveJobIdFromPage() {
 
 // ── Robust Job Details Extractor ──
 function extractActiveJobDetails() {
+  const host = window.location.hostname.toLowerCase();
+  const url = window.location.href.toLowerCase();
+
   let title = '';
   let company = '';
   let location = '';
   let description = '';
 
   const detailPane = document.querySelector(
-    '.jobs-search__job-details, .scaffold-layout__detail, .job-view-layout, .jobs-details, [data-view-name="job-details-component"], .jobsearch-JobComponent, main, article'
+    '.jobs-search__job-details, .scaffold-layout__detail, .job-view-layout, .jobs-details, [data-view-name="job-details-component"], .jobsearch-JobComponent, .gc-job-detail, main, article'
   );
 
-  // 1. LinkedIn Extraction
-  if (isLinkedIn) {
-    // Title from detail pane
+  // 1. LinkedIn
+  if (host.includes('linkedin.com')) {
     title = (detailPane || document).querySelector(
       '.job-details-jobs-unified-top-card__job-title, .jobs-unified-top-card__job-title, h1.job-details-jobs-unified-top-card__job-title, h2.job-details-jobs-unified-top-card__job-title, h1.t-24, h2.t-24, [data-view-name="job-details-top-card"] h1, [data-view-name="job-details-top-card"] h2, .jobs-details__top-card h1, .jobs-details__top-card h2, h1'
     )?.innerText?.trim() || '';
 
-    // If detail pane title missing, check active card in list
     if (!title) {
       const activeCard = document.querySelector(
         '.jobs-search-results-list__list-item--active, [data-occludable-job-id].active'
@@ -119,27 +166,9 @@ function extractActiveJobDetails() {
       )?.innerText?.trim() || '';
     }
 
-    // Fallback: document.title
-    if (!title && document.title) {
-      const cleanDocTitle = document.title.split(/ [|\-–—] /)[0]?.trim();
-      if (cleanDocTitle && !cleanDocTitle.includes('Jobs') && !cleanDocTitle.includes('LinkedIn')) {
-        title = cleanDocTitle;
-      }
-    }
-
-    // Company from detail pane
     company = (detailPane || document).querySelector(
       '.job-details-jobs-unified-top-card__company-name, .jobs-unified-top-card__company-name, [data-anonymize="company-name"], a.ember-view.t-black--light, .job-details-jobs-unified-top-card a[href*="/company/"]'
     )?.innerText?.trim() || '';
-
-    if (!company) {
-      const activeCard = document.querySelector(
-        '.jobs-search-results-list__list-item--active, [data-occludable-job-id].active'
-      );
-      company = activeCard?.querySelector(
-        '.job-card-container__primary-description, .artdeco-entity-lockup__subtitle'
-      )?.innerText?.trim() || '';
-    }
 
     location = (detailPane || document).querySelector(
       '.job-details-jobs-unified-top-card__bullet, .jobs-unified-top-card__bullet, .jobs-unified-top-card__workplace-type'
@@ -150,22 +179,30 @@ function extractActiveJobDetails() {
     );
     description = descEl?.innerText?.trim() || '';
   }
-  // 2. Indeed Extraction
-  else if (isIndeed) {
+  // 2. Google Careers
+  else if (host.includes('google.com') && (url.includes('/careers') || url.includes('/jobs'))) {
+    title = document.querySelector('h1, h2.title, [role="heading"][aria-level="1"], .gc-job-detail__title, .headline-4')?.innerText?.trim() || '';
+    company = 'Google';
+    location = document.querySelector('[aria-label*="Location"], .gc-job-detail__meta, .gc-job-location, [aria-label*="location"]')?.innerText?.trim() || 'Mountain View, CA';
+    const descEl = document.querySelector('[aria-label="Job details"], .gc-job-detail, main, article');
+    description = descEl?.innerText?.trim() || '';
+  }
+  // 3. Indeed
+  else if (host.includes('indeed.com')) {
     title = document.querySelector('h2.jobTitle, .jobsearch-JobInfoHeader-title, h1')?.innerText?.trim() || '';
     company = document.querySelector('[data-testid="inlineHeader-companyName"], .companyName')?.innerText?.trim() || '';
     location = document.querySelector('[data-testid="inlineHeader-companyLocation"]')?.innerText?.trim() || '';
     const descEl = document.querySelector('#jobDescriptionText, .jobsearch-JobComponent-description');
     description = descEl?.innerText?.trim() || '';
   }
-  // 3. Wellfound / AngelList
-  else if (isWellfound) {
+  // 4. Wellfound / AngelList
+  else if (host.includes('wellfound.com') || host.includes('angel.co')) {
     title = document.querySelector('h1, h2, [data-test="JobTitle"]')?.innerText?.trim() || '';
     company = document.querySelector('[data-test="StartupName"], .styles_header__')?.innerText?.trim() || '';
     const descEl = document.querySelector('.styles_description__, [data-test="JobDescription"]');
     description = descEl?.innerText?.trim() || '';
   }
-  // 4. Other Platforms
+  // 5. General Career Pages
   else {
     title = document.querySelector('h1.app-title, .posting-headline h2, h1')?.innerText?.trim() || '';
     company = document.querySelector('.company-name, .posting-headline .company, meta[property="og:site_name"]')?.innerText?.trim() || '';
@@ -173,14 +210,18 @@ function extractActiveJobDetails() {
     description = descEl?.innerText?.trim() || '';
   }
 
-  // Fallbacks
-  if (!title) {
-    const raw = document.title || '';
-    title = raw.split(/ [|\-–—] /)[0]?.trim() || 'Software Engineer';
+  // Guaranteed clean fallbacks
+  if (!title && document.title) {
+    const cleanDocTitle = document.title.split(/ [|\-–—] /)[0]?.trim();
+    if (cleanDocTitle && !cleanDocTitle.includes('Jobs') && !cleanDocTitle.includes('Careers')) {
+      title = cleanDocTitle;
+    }
   }
+
+  if (!title) title = 'Software Engineer Opportunity';
   if (!company) company = 'Detected Company';
   if (!location) location = 'Remote / Hybrid';
-  if (!description || description.length < 50) {
+  if (!description || description.length < 40) {
     description = (detailPane || document.body)?.innerText?.slice(0, 5000) || 'Job description context.';
   }
 
@@ -188,63 +229,20 @@ function extractActiveJobDetails() {
   return { jobId, title, company, location, description };
 }
 
-// ── Floating Corner HUD Pill ──
-function renderFloatingPill(data, verdictTitle, verdictColor, reqExp, candExp) {
-  let pill = document.getElementById('careerradar-floating-pill');
-  if (!pill) {
-    pill = document.createElement('div');
-    pill.id = 'careerradar-floating-pill';
-    pill.title = 'Click to view CareerRadar breakdown';
-    pill.addEventListener('click', () => {
-      const banner = document.getElementById('careerradar-onscreen-banner');
-      if (banner) {
-        banner.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      } else {
-        const drawer = document.getElementById('careerradar-inpage-drawer');
-        if (drawer) drawer.classList.add('open');
-      }
-    });
-    document.body.appendChild(pill);
-  }
-
-  pill.innerHTML = `
-    <span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:${verdictColor};"></span>
-    <span style="font-weight:700; font-family:ui-monospace, monospace; letter-spacing:0.02em;">${verdictTitle}</span>
-    <span style="color:#a1a1aa;">|</span>
-    <span style="color:#d4d4d8;">${data.matchPercentage || 80}% Fit</span>
-    <span style="color:#71717a; font-family:ui-monospace, monospace; font-size:10px;">(${reqExp} req vs ${candExp})</span>
-  `;
-}
-
-function renderFloatingPillLoading(title = '') {
-  let pill = document.getElementById('careerradar-floating-pill');
-  if (!pill) {
-    pill = document.createElement('div');
-    pill.id = 'careerradar-floating-pill';
-    document.body.appendChild(pill);
-  }
-
-  const display = title ? title.slice(0, 24) : 'Fit';
-  pill.innerHTML = `
-    <span class="careerradar-spin" style="font-size:12px; color:#a1a1aa;">⬡</span>
-    <span style="font-weight:600; font-family:ui-monospace, monospace; font-size:11px; color:#d4d4d8;">
-      Arbitrating ${display}...
-    </span>
-  `;
-}
-
-// ── Apollo / SignalHire Sticky Right Dock & Slide Drawer ──
+// ── Apollo / SignalHire Compact Floating Dock & Slide Drawer ──
 function injectApolloDockAndDrawer() {
   if (document.getElementById('careerradar-dock-tab')) return;
 
-  // 1. Sticky Edge Dock Tab
+  // 1. Compact 36x36px Edge Dock Tab
   const dock = document.createElement('div');
   dock.id = 'careerradar-dock-tab';
-  dock.title = 'Click to open CareerRadar Analysis';
+  dock.title = 'CareerRadar Analysis';
   dock.innerHTML = `
-    <span class="dock-icon">⬡</span>
-    <span class="dock-label">CareerRadar</span>
-    <span id="dock-status-badge" class="dock-badge">Live</span>
+    <svg class="dock-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+    </svg>
+    <span id="dock-fit-dot" class="dock-fit-dot"></span>
+    <div id="dock-tooltip-label" class="dock-tooltip">CareerRadar</div>
   `;
   document.body.appendChild(dock);
 
@@ -254,8 +252,11 @@ function injectApolloDockAndDrawer() {
   drawer.innerHTML = `
     <div class="cr-header">
       <div class="cr-brand">
-        <span class="cr-brand-logo">⬡</span>
+        <svg class="cr-brand-logo" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+        </svg>
         <span class="cr-brand-title">CareerRadar</span>
+        <span class="cr-badge-live">Live</span>
       </div>
       <div style="display:flex; align-items:center; gap:6px;">
         <button id="drawer-btn-chrome-sp" class="cr-btn-ghost" style="font-size:10px; padding:3px 6px;" title="Open in native Chrome Side Panel">
@@ -266,44 +267,11 @@ function injectApolloDockAndDrawer() {
     </div>
 
     <!-- Active Job Detected Bar -->
-    <div class="cr-card cr-card-compact">
+    <div class="cr-card cr-card-compact" style="margin-bottom:10px;">
       <div class="cr-job-active-bar">
-        <div>
+        <div style="flex:1; min-width:0;">
           <div id="drawer-job-title" class="cr-job-title">Detecting active job page...</div>
           <div id="drawer-job-company" class="cr-job-meta">Reading browser context...</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Candidate Profile Collapsible Bar -->
-    <div class="cr-card cr-card-compact" style="margin-bottom:12px;">
-      <div id="drawer-profile-header" class="cr-profile-bar">
-        <div class="cr-profile-info">
-          <div class="cr-profile-avatar">👨‍💻</div>
-          <div>
-            <div id="drawer-profile-name" class="cr-profile-name">My Resume Profile</div>
-            <div id="drawer-profile-sub" class="cr-profile-meta">Click to calibrate profile</div>
-          </div>
-        </div>
-        <button id="drawer-btn-toggle-profile" class="cr-btn-ghost" style="padding:3px 8px; font-size:11px;">
-          <span id="drawer-profile-chevron">Edit ▾</span>
-        </button>
-      </div>
-
-      <div id="drawer-profile-content" style="display:none; margin-top:10px; padding-top:10px; border-top:1px solid #f4f4f5;">
-        <div style="margin-bottom:8px;">
-          <label for="drawer-resume-input" class="cr-btn-ghost" style="display:block; text-align:center; padding:7px 10px; cursor:pointer; border:1px dashed #d4d4d8; border-radius:6px;">
-            📁 Upload Resume (PDF / TXT)
-          </label>
-          <input type="file" id="drawer-resume-input" accept=".pdf,.txt,.md" style="display:none;" />
-        </div>
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:6px;">
-          <label style="font-size:11px; color:#52525b;">Exp Years:</label>
-          <input type="number" id="drawer-years" step="0.5" min="0" max="20" style="width:50px; padding:2px 4px; font-size:11px; border:1px solid #d4d4d8; border-radius:4px; font-family:ui-monospace, monospace;" />
-        </div>
-        <div style="display:flex; gap:6px; margin-top:8px;">
-          <button id="drawer-btn-save-profile" class="btn btn-primary" style="flex:1; padding:6px 10px; font-size:11px; background:#09090b; color:#fff; border-radius:6px; border:none; cursor:pointer;">Save Profile</button>
-          <button id="drawer-btn-hide-profile" class="cr-btn-ghost" style="padding:6px 10px; font-size:11px;">Done ▴</button>
         </div>
       </div>
     </div>
@@ -314,15 +282,16 @@ function injectApolloDockAndDrawer() {
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
           <div style="display:flex; align-items:center; gap:6px;">
             <span class="careerradar-spin">⬡</span>
-            <strong style="font-size:11px; font-family:ui-monospace, monospace; text-transform:uppercase;">Arbitrating Fit...</strong>
+            <strong style="font-size:10.5px; font-family:ui-monospace, monospace; text-transform:uppercase;">Arbitrating Fit...</strong>
           </div>
+          <span class="cr-badge-live">Jev System One</span>
         </div>
-        <div class="careerradar-skeleton-shimmer" style="width:100%; height:32px; border-radius:6px; margin-bottom:10px;"></div>
-        <div class="careerradar-skeleton-shimmer" style="width:100%; height:48px; border-radius:6px; margin-bottom:10px;"></div>
+        <div class="careerradar-skeleton-shimmer" style="width:100%; height:28px; border-radius:6px; margin-bottom:8px;"></div>
+        <div class="careerradar-skeleton-shimmer" style="width:100%; height:40px; border-radius:6px; margin-bottom:8px;"></div>
         <div class="cr-metrics-grid">
-          <div class="cr-metric-tile"><div class="careerradar-skeleton-shimmer" style="width:70%; height:14px; margin:0 auto;"></div></div>
-          <div class="cr-metric-tile"><div class="careerradar-skeleton-shimmer" style="width:70%; height:14px; margin:0 auto;"></div></div>
-          <div class="cr-metric-tile"><div class="careerradar-skeleton-shimmer" style="width:70%; height:14px; margin:0 auto;"></div></div>
+          <div class="cr-metric-tile"><div class="careerradar-skeleton-shimmer" style="width:70%; height:12px; margin:0 auto;"></div></div>
+          <div class="cr-metric-tile"><div class="careerradar-skeleton-shimmer" style="width:70%; height:12px; margin:0 auto;"></div></div>
+          <div class="cr-metric-tile"><div class="careerradar-skeleton-shimmer" style="width:70%; height:12px; margin:0 auto;"></div></div>
         </div>
       </div>
 
@@ -376,16 +345,16 @@ function injectApolloDockAndDrawer() {
         </div>
         <div id="drawer-calib-note" class="cr-calib-note" style="display:none;"></div>
 
-        <div style="margin-top:10px;">
-          <div style="font-size:11px; font-weight:600; color:#15803d; margin-bottom:4px;">
-            ✓ Matched Systems Deliverables:
+        <div style="margin-top:9px;">
+          <div style="font-size:10.5px; font-weight:600; color:#15803d; margin-bottom:3px; text-transform:uppercase; letter-spacing:0.03em;">
+            ✓ Matched Deliverables:
           </div>
           <div id="drawer-matched-chips" class="cr-chips-container"></div>
         </div>
 
-        <div id="drawer-nuance-section" style="margin-top:10px; display:none;">
-          <div style="font-size:11px; font-weight:600; color:#b45309; margin-bottom:4px;">
-            ⚠ Domain Focus & Nuance:
+        <div id="drawer-nuance-section" style="margin-top:9px; display:none;">
+          <div style="font-size:10.5px; font-weight:600; color:#b45309; margin-bottom:3px; text-transform:uppercase; letter-spacing:0.03em;">
+            ⚠ Domain Nuance:
           </div>
           <div id="drawer-nuance-chips" class="cr-chips-container"></div>
         </div>
@@ -394,7 +363,7 @@ function injectApolloDockAndDrawer() {
   `;
   document.body.appendChild(drawer);
 
-  // Event handlers
+  // Event Handlers
   dock.addEventListener('click', () => {
     drawer.classList.toggle('open');
   });
@@ -406,154 +375,28 @@ function injectApolloDockAndDrawer() {
   drawer.querySelector('#drawer-btn-chrome-sp')?.addEventListener('click', () => {
     safeSendMessage({ type: 'OPEN_SIDE_PANEL' });
   });
-
-  const pContent = drawer.querySelector('#drawer-profile-content');
-  const pChevron = drawer.querySelector('#drawer-profile-chevron');
-  const toggleDrawerP = (open = null) => {
-    const isO = pContent.style.display !== 'none';
-    const next = open !== null ? open : !isO;
-    pContent.style.display = next ? 'block' : 'none';
-    if (pChevron) pChevron.innerText = next ? 'Done ▴' : 'Edit ▾';
-  };
-
-  drawer.querySelector('#drawer-profile-header')?.addEventListener('click', () => toggleDrawerP());
-  drawer.querySelector('#drawer-btn-toggle-profile')?.addEventListener('click', (e) => {
-    e.stopPropagation();
-    toggleDrawerP();
-  });
-  drawer.querySelector('#drawer-btn-hide-profile')?.addEventListener('click', (e) => {
-    e.stopPropagation();
-    toggleDrawerP(false);
-  });
-
-  // Populate candidate profile info in drawer
-  chrome.storage?.local?.get(['customMetadata', 'customResume'], ({ customMetadata, customResume }) => {
-    const nameEl = drawer.querySelector('#drawer-profile-name');
-    const subEl = drawer.querySelector('#drawer-profile-sub');
-    const yearsInput = drawer.querySelector('#drawer-years');
-    if (customMetadata && customResume) {
-      if (nameEl) nameEl.innerText = customResume.name || 'Candidate Profile';
-      const expStr = customMetadata.calculatedYears ? `${customMetadata.calculatedYears} yrs` : '1.5 yrs';
-      if (subEl) subEl.innerText = `${expStr} · ${customMetadata.roles?.[0] || 'Backend & Systems'}`;
-      if (yearsInput) yearsInput.value = customMetadata.calculatedYears || 1.5;
-    }
-  });
-
-  // Drawer file upload handler
-  drawer.querySelector('#drawer-resume-input')?.addEventListener('change', async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const formData = new FormData();
-    formData.append('resume', file);
-    try {
-      const res = await fetch(`${BACKEND_URL}/api/upload-resume`, { method: 'POST', body: formData });
-      const data = await res.json();
-      if (data.candidate) {
-        safeStorageSet({
-          customResume: data.candidate,
-          customResumeText: data.rawText || '',
-          customMetadata: data.metadata || {},
-          activePersona: 'custom'
-        });
-        toggleDrawerP(false);
-        evaluateActiveJob(true);
-      }
-    } catch {}
-  });
-
-  drawer.querySelector('#drawer-btn-save-profile')?.addEventListener('click', async () => {
-    const yearsInput = drawer.querySelector('#drawer-years');
-    const years = yearsInput?.value ? Number(yearsInput.value) : undefined;
-    chrome.storage?.local?.get('customResumeText', async ({ customResumeText }) => {
-      if (customResumeText) {
-        try {
-          const res = await fetch(`${BACKEND_URL}/api/parse-resume`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ text: customResumeText, years })
-          });
-          const d = await res.json();
-          if (d.candidate) {
-            safeStorageSet({
-              customResume: d.candidate,
-              customMetadata: d.metadata || {},
-              activePersona: 'custom'
-            });
-            toggleDrawerP(false);
-            evaluateActiveJob(true);
-          }
-        } catch {}
-      }
-    });
-  });
 }
 
-// ── Render Immediate Loading State ──
+// ── Show Loading in Drawer & Dock ──
 function showImmediateLoadingState(title = '', company = '', jobId = null) {
   injectApolloDockAndDrawer();
 
-  // 1. On-Screen Banner Loading Skeleton
-  const detailPane = document.querySelector(
-    '.jobs-search__job-details, .scaffold-layout__detail, .job-view-layout, .jobs-details, [data-view-name="job-details-component"], .jobsearch-JobComponent, main, article'
-  ) || document.body;
-
-  let banner = document.getElementById('careerradar-onscreen-banner');
-  if (!banner) {
-    banner = document.createElement('div');
-    banner.id = 'careerradar-onscreen-banner';
-    const topTarget = (detailPane || document).querySelector(
-      '.job-details-jobs-unified-top-card__content--two-pane, .jobs-unified-top-card__content--two-pane, .job-details-jobs-unified-top-card, .jobs-unified-top-card, .jobs-details__top-card, [data-view-name="job-details-top-card"], .jobsearch-JobInfoHeader-title, h1, h2'
-    );
-    if (topTarget && topTarget.parentNode) {
-      topTarget.insertAdjacentElement('afterend', banner);
-    } else if (detailPane) {
-      detailPane.prepend(banner);
-    }
-  }
-
-  banner.className = 'careerradar-banner-loading cr-card';
-  banner.style.display = 'block';
-
-  const displayTitle = title ? title.slice(0, 36) : 'Job Opening';
-  banner.innerHTML = `
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; padding-bottom:8px; border-bottom:1px solid #f4f4f5;">
-      <div style="display:flex; align-items:center; gap:8px;">
-        <span class="careerradar-spin" style="font-size:14px; color:#09090b;">⬡</span>
-        <strong style="font-size:11px; font-family:ui-monospace, monospace; text-transform:uppercase; letter-spacing:0.04em; color:#09090b;">
-          Arbitrating Fit (${displayTitle})...
-        </strong>
-      </div>
-      <span class="cr-badge-live">⚡ Jev System One</span>
-    </div>
-    <div style="display:flex; gap:10px; margin-bottom:12px;">
-      <div class="careerradar-skeleton-shimmer" style="width:140px; height:24px;"></div>
-      <div class="careerradar-skeleton-shimmer" style="width:90px; height:24px;"></div>
-    </div>
-    <div class="cr-metrics-grid" style="margin-bottom:12px;">
-      <div class="cr-metric-tile"><div class="careerradar-skeleton-shimmer" style="width:60%; height:12px; margin:0 auto;"></div></div>
-      <div class="cr-metric-tile"><div class="careerradar-skeleton-shimmer" style="width:60%; height:12px; margin:0 auto;"></div></div>
-      <div class="cr-metric-tile"><div class="careerradar-skeleton-shimmer" style="width:60%; height:12px; margin:0 auto;"></div></div>
-    </div>
-    <div class="careerradar-skeleton-shimmer" style="width:80%; height:12px; margin-bottom:6px;"></div>
-    <div class="careerradar-skeleton-shimmer" style="width:60%; height:12px;"></div>
-  `;
-
-  // 2. Floating Corner Pill
-  renderFloatingPillLoading(title);
-
-  // 3. In-Page Slide Drawer
+  // Update In-Page Drawer
   const dSkel = document.getElementById('drawer-skeleton');
   const dCard = document.getElementById('drawer-verdict-card');
   const dTitle = document.getElementById('drawer-job-title');
   const dComp = document.getElementById('drawer-job-company');
-  const dockBadge = document.getElementById('dock-status-badge');
+  const tooltip = document.getElementById('dock-tooltip-label');
+  const fitDot = document.getElementById('dock-fit-dot');
+
   if (dSkel) dSkel.style.display = 'block';
   if (dCard) dCard.style.display = 'none';
   if (dTitle) dTitle.innerText = title || 'Job Opening';
   if (dComp) dComp.innerText = company || 'Evaluating fit...';
-  if (dockBadge) dockBadge.innerText = '...';
+  if (tooltip) tooltip.innerText = 'Arbitrating Fit...';
+  if (fitDot) fitDot.style.display = 'none';
 
-  // 4. Notify Side Panel & Storage Defensively
+  // Notify Side Panel & Storage Defensively
   safeStorageSet({
     activeJobEvaluating: { title, company, jobId, timestamp: Date.now() }
   });
@@ -565,26 +408,26 @@ function showImmediateLoadingState(title = '', company = '', jobId = null) {
   });
 }
 
-// ── Render Evaluated Verdict ──
-function renderVerdictBanner(data, title, company, location, description, jobId) {
+// ── Render Evaluated Verdict in Drawer & Dock ──
+function renderVerdict(data, title, company, location, description, jobId) {
   const isCanApply = data.verdict === 'can_apply';
   const isReach = data.verdict === 'reach_apply';
 
   let heroClass = 'cr-verdict-hero-mismatch';
   let dotClass = 'cr-verdict-dot-mismatch';
   let verdictTitle = 'EXPERIENCE / TENURE GAP';
-  let dockLabel = 'Mismatch';
+  let dotColor = '#f43f5e';
 
   if (isCanApply) {
     heroClass = 'cr-verdict-hero-can-apply';
     dotClass = 'cr-verdict-dot-can-apply';
     verdictTitle = 'HIGH FIT · CAN APPLY';
-    dockLabel = `${data.matchPercentage || 85}% Fit`;
+    dotColor = '#10b981';
   } else if (isReach) {
     heroClass = 'cr-verdict-hero-reach-apply';
     dotClass = 'cr-verdict-dot-reach-apply';
     verdictTitle = 'COMPETITIVE CONTENDER · REACH APPLY';
-    dockLabel = `Reach (${data.matchPercentage || 75}%)`;
+    dotColor = '#f59e0b';
   }
 
   const matched = data.subagentSignals?.matchedDeliverables || [];
@@ -593,93 +436,19 @@ function renderVerdictBanner(data, title, company, location, description, jobId)
   const candExp = data.subagentSignals?.candidateExp || '1.5 Years';
   const summaryVerdict = data.subagentSignals?.summaryVerdict || '';
 
-  // 1. Update On-Screen Banner
-  const banner = document.getElementById('careerradar-onscreen-banner');
-  if (banner) {
-    banner.className = 'careerradar-banner-verdict cr-card';
-    banner.innerHTML = `
-      <!-- Hero Recommendation Banner -->
-      <div class="cr-verdict-hero ${heroClass}">
-        <div style="display:flex; align-items:center;">
-          <span class="cr-verdict-dot ${dotClass}"></span>
-          <span>${verdictTitle}</span>
-        </div>
-        <div class="cr-verdict-telemetry">⚡ ${data.ms}ms · ${Math.round((data.verdictConfidence || 0.9) * 100)}% Conf</div>
-      </div>
-
-      <!-- Executive Summary Box -->
-      <div class="cr-summary-box">
-        <div>${summaryVerdict}</div>
-      </div>
-
-      <!-- 3-Tile Metrics Dashboard -->
-      <div class="cr-metrics-grid">
-        <div class="cr-metric-tile">
-          <div class="cr-metric-label">Architecture Fit</div>
-          <div class="cr-metric-val">${data.matchPercentage || 75}%</div>
-          <div class="cr-metric-track">
-            <div class="cr-metric-fill" style="width:${data.matchPercentage || 75}%; background:${(data.matchPercentage || 75) >= 70 ? '#10b981' : ((data.matchPercentage || 75) >= 40 ? '#f59e0b' : '#f43f5e')};"></div>
-          </div>
-        </div>
-        <div class="cr-metric-tile">
-          <div class="cr-metric-label">Systems Synergy</div>
-          <div class="cr-metric-val">${(data.techScore || 3.0).toFixed(1)}<span style="font-size:11px; font-weight:normal; color:#71717a;">/4</span></div>
-          <div class="cr-metric-track">
-            <div class="cr-metric-fill" style="width:${Math.min(100, ((data.techScore || 3.0) / 4) * 100)}%; background:#10b981;"></div>
-          </div>
-        </div>
-        <div class="cr-metric-tile">
-          <div class="cr-metric-label">Screen Odds</div>
-          <div class="cr-metric-val">${Math.round((data.interviewOdds || 0.7) * 100)}%</div>
-          <div class="cr-metric-track">
-            <div class="cr-metric-fill" style="width:${Math.round((data.interviewOdds || 0.7) * 100)}%; background:#10b981;"></div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Experience Calibration Strip -->
-      <div class="cr-calib-strip">
-        <div class="cr-calib-side">
-          <span class="cr-calib-lbl">Role Requirement</span>
-          <strong class="cr-calib-val">${reqExp}</strong>
-        </div>
-        <div class="cr-calib-divider">vs</div>
-        <div class="cr-calib-side" style="text-align:right;">
-          <span class="cr-calib-lbl">Your Profile</span>
-          <strong class="cr-calib-val">${candExp}</strong>
-        </div>
-      </div>
-      ${isReach ? '<div class="cr-calib-note">(Manageable stretch — tenure gap bridged by high-throughput Kafka & AWS infrastructure)</div>' : ''}
-
-      <!-- Matched Deliverables Chips -->
-      <div style="margin-top:10px;">
-        <div style="font-size:11px; font-weight:600; color:#15803d; margin-bottom:4px;">
-          ✓ Matched Systems Deliverables:
-        </div>
-        <div class="cr-chips-container">
-          ${matched.length ? matched.map(m => `<span class="cr-chip-green">✓ ${m}</span>`).join('') : '<span style="font-size:11px; color:#71717a;">General software overlap</span>'}
-        </div>
-      </div>
-
-      <!-- Domain Nuances -->
-      ${gaps.length ? `
-        <div style="margin-top:10px;">
-          <div style="font-size:11px; font-weight:600; color:#b45309; margin-bottom:4px;">
-            ⚠ Domain Focus & Nuance:
-          </div>
-          <div class="cr-chips-container">
-            ${gaps.map(g => `<span class="cr-chip-amber">⚠ ${g}</span>`).join('')}
-          </div>
-        </div>
-      ` : ''}
-    `;
+  // Update Dock Status
+  const fitDot = document.getElementById('dock-fit-dot');
+  const tooltip = document.getElementById('dock-tooltip-label');
+  if (fitDot) {
+    fitDot.style.background = dotColor;
+    fitDot.style.boxShadow = `0 0 6px ${dotColor}`;
+    fitDot.style.display = 'block';
+  }
+  if (tooltip) {
+    tooltip.innerText = `CareerRadar · ${data.matchPercentage || 80}% Fit`;
   }
 
-  // 2. Update Floating Corner Pill
-  const verdictPillColor = isCanApply ? '#10b981' : (isReach ? '#f59e0b' : '#f43f5e');
-  renderFloatingPill(data, verdictTitle, verdictPillColor, reqExp, candExp);
-
-  // 3. Update In-Page Slide Drawer
+  // Update In-Page Slide Drawer
   const dSkel = document.getElementById('drawer-skeleton');
   const dCard = document.getElementById('drawer-verdict-card');
   const dTitle = document.getElementById('drawer-job-title');
@@ -689,13 +458,11 @@ function renderVerdictBanner(data, title, company, location, description, jobId)
   const dHdr = document.getElementById('drawer-hero-title');
   const dTelem = document.getElementById('drawer-hero-telemetry');
   const dSumm = document.getElementById('drawer-summary-text');
-  const dockBadge = document.getElementById('dock-status-badge');
 
   if (dSkel) dSkel.style.display = 'none';
   if (dCard) dCard.style.display = 'block';
   if (dTitle) dTitle.innerText = title || 'Job Opening';
   if (dComp) dComp.innerText = company || 'Evaluated Job';
-  if (dockBadge) dockBadge.innerText = dockLabel;
 
   if (dBadge) dBadge.className = `cr-verdict-hero ${heroClass}`;
   if (dDot) dDot.className = `cr-verdict-dot ${dotClass}`;
@@ -712,7 +479,7 @@ function renderVerdictBanner(data, title, company, location, description, jobId)
 
   if (dViabVal) dViabVal.innerText = `${data.matchPercentage || 75}%`;
   if (dViabBar) dViabBar.style.width = `${data.matchPercentage || 75}%`;
-  if (dSuitVal) dSuitVal.innerHTML = `${(data.techScore || 3.0).toFixed(1)}<span style="font-size:11px; font-weight:normal; color:#71717a;">/4</span>`;
+  if (dSuitVal) dSuitVal.innerHTML = `${(data.techScore || 3.0).toFixed(1)}<span style="font-size:10px; font-weight:normal; color:#71717a;">/4</span>`;
   if (dSuitBar) dSuitBar.style.width = `${Math.min(100, ((data.techScore || 3.0) / 4) * 100)}%`;
   if (dOddsVal) dOddsVal.innerText = `${Math.round((data.interviewOdds || 0.7) * 100)}%`;
   if (dOddsBar) dOddsBar.style.width = `${Math.round((data.interviewOdds || 0.7) * 100)}%`;
@@ -735,7 +502,7 @@ function renderVerdictBanner(data, title, company, location, description, jobId)
   if (dMatched) {
     dMatched.innerHTML = matched.length
       ? matched.map(m => `<span class="cr-chip-green">✓ ${m}</span>`).join('')
-      : '<span style="font-size:11px; color:#71717a;">General software engineering overlap</span>';
+      : '<span style="font-size:11px; color:#71717a;">General software overlap</span>';
   }
 
   const dNuanceSec = document.getElementById('drawer-nuance-section');
@@ -749,7 +516,7 @@ function renderVerdictBanner(data, title, company, location, description, jobId)
     }
   }
 
-  // 4. Save to shared storage so Side Panel receives it 100% reliably
+  // Save to shared storage so Side Panel receives it 100% reliably
   const evalPayload = {
     data,
     scraped: { title, company, location, description, jobId },
@@ -771,25 +538,6 @@ function renderVerdictBanner(data, title, company, location, description, jobId)
 function renderErrorState(errorMessage = '') {
   safeStorageSet({ activeJobEvaluating: null });
 
-  const banner = document.getElementById('careerradar-onscreen-banner');
-  if (banner) {
-    banner.className = 'cr-card';
-    banner.innerHTML = `
-      <div style="display:flex; justify-content:space-between; align-items:center; color:#991b1b; font-size:12px;">
-        <div style="display:flex; align-items:center; gap:6px;">
-          <span>⚠</span>
-          <strong>CareerRadar Notice:</strong> ${errorMessage || 'Ensure local server is running on http://localhost:3001'}
-        </div>
-        <button id="cr-retry-btn" class="cr-btn-ghost" style="font-size:11px; padding:2px 8px; border:1px solid #fca5a5;">
-          Retry
-        </button>
-      </div>
-    `;
-    banner.querySelector('#cr-retry-btn')?.addEventListener('click', () => {
-      evaluateActiveJob(true);
-    });
-  }
-
   const dSkel = document.getElementById('drawer-skeleton');
   const dCard = document.getElementById('drawer-verdict-card');
   if (dSkel) dSkel.style.display = 'none';
@@ -799,17 +547,14 @@ function renderErrorState(errorMessage = '') {
     if (dSumm) dSumm.innerText = errorMessage || 'Could not connect to local arbitrator server at http://localhost:3001.';
   }
 
-  const pill = document.getElementById('careerradar-floating-pill');
-  if (pill) {
-    pill.innerHTML = `
-      <span style="color:#f87171;">⚠</span>
-      <span style="font-size:11px; font-family:ui-monospace, monospace; color:#d4d4d8;">Server Offline</span>
-    `;
-  }
+  const tooltip = document.getElementById('dock-tooltip-label');
+  if (tooltip) tooltip.innerText = 'Server Offline';
 }
 
-// ── Master Job Evaluation Core ──
+// ── Evaluation Core ──
 async function evaluateActiveJob(force = false) {
+  if (!isJobPage()) return;
+
   const details = extractActiveJobDetails();
   const jobId = details.jobId;
 
@@ -818,12 +563,12 @@ async function evaluateActiveJob(force = false) {
     return;
   }
 
-  // 2. Prevent self-aborting / overlapping loops for the same job!
+  // 2. Prevent self-aborting / overlapping loops for the same job
   if (isEvaluating && jobId && jobId === activeJobId) {
     return;
   }
 
-  // 3. If scanning an old job and user switched to a new job, abort the old request
+  // 3. If scanning an old job and user switched to a new job, abort previous fetch
   if (isEvaluating && inflightController) {
     inflightController.abort();
   }
@@ -831,7 +576,6 @@ async function evaluateActiveJob(force = false) {
   isEvaluating = true;
   activeJobId = jobId;
 
-  // Render immediate loading state
   showImmediateLoadingState(details.title, details.company, jobId);
 
   inflightController = new AbortController();
@@ -881,11 +625,10 @@ async function evaluateActiveJob(force = false) {
     lastEvaluatedJobId = jobId;
     isEvaluating = false;
 
-    renderVerdictBanner(data, details.title, details.company, details.location, details.description, jobId);
+    renderVerdict(data, details.title, details.company, details.location, details.description, jobId);
   } catch (err) {
     clearTimeout(timeoutId);
 
-    // If aborted because a new job was clicked, let the new job run
     if (err.name === 'AbortError' && activeJobId !== jobId) {
       return;
     }
@@ -896,7 +639,8 @@ async function evaluateActiveJob(force = false) {
 }
 
 // ── Debounced Trigger Helper ──
-function triggerDebouncedScan(force = false, delayMs = 180) {
+function triggerDebouncedScan(force = false, delayMs = 150) {
+  if (!isJobPage()) return;
   if (scanDebounceTimer) clearTimeout(scanDebounceTimer);
   scanDebounceTimer = setTimeout(() => {
     evaluateActiveJob(force);
@@ -905,20 +649,23 @@ function triggerDebouncedScan(force = false, delayMs = 180) {
 
 // ── Watchdogs & Event System ──
 function initWatchdogs() {
+  if (!isJobPage()) return;
+
   injectApolloDockAndDrawer();
 
   // 1. Capture user clicks on job listings anywhere
   document.addEventListener('click', (e) => {
     const jobClick = e.target.closest(
-      '.jobs-search-results__list-item, .job-card-container, .jobs-search-results-list__list-item, [data-occludable-job-id], [data-job-id], a[href*="/jobs/view/"], .scaffold-layout__list-item'
+      '.jobs-search-results__list-item, .job-card-container, .jobs-search-results-list__list-item, [data-occludable-job-id], [data-job-id], a[href*="/jobs/view/"], .scaffold-layout__list-item, [role="listitem"]'
     );
     if (jobClick) {
       triggerDebouncedScan(false, 150);
     }
   }, true);
 
-  // 2. Watch URL and Job ID changes every 400ms
+  // 2. Watch URL and Job ID changes
   setInterval(() => {
+    if (!isJobPage()) return;
     const currentUrl = window.location.href;
     const currentJobId = getActiveJobIdFromPage();
 
@@ -944,5 +691,9 @@ function initWatchdogs() {
   }, 350);
 }
 
-// Start immediately
-initWatchdogs();
+// Start immediately if on job page
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initWatchdogs);
+} else {
+  initWatchdogs();
+}
