@@ -39,14 +39,53 @@ function getActiveJobIdFromPage() {
   }
 }
 
+// Safe Chrome Extensions API wrappers to prevent "Extension context invalidated" errors
+function isExtensionContextValid() {
+  try {
+    return typeof chrome !== 'undefined' && !!chrome.runtime && !!chrome.runtime.id;
+  } catch {
+    return false;
+  }
+}
+
+function safeStorageSet(data) {
+  try {
+    if (isExtensionContextValid() && chrome.storage?.local) {
+      chrome.storage.local.set(data, () => {
+        if (chrome.runtime?.lastError) { /* ignore */ }
+      });
+    }
+  } catch {
+    // Ignore context error
+  }
+}
+
+function safeSendMessage(message) {
+  try {
+    if (isExtensionContextValid()) {
+      chrome.runtime.sendMessage(message, () => {
+        if (chrome.runtime?.lastError) { /* ignore */ }
+      });
+    }
+  } catch {
+    // Ignore context error
+  }
+}
+
 // Retrieve Active Persona & Custom Resume from Storage
 async function getActiveCandidate() {
   try {
-    const { activePersona = 'custom', customResume = null } = await chrome.storage.local.get(['activePersona', 'customResume']);
-    return { activePersona, customResume };
+    if (isExtensionContextValid() && chrome.storage?.local) {
+      const stored = await chrome.storage.local.get(['activePersona', 'customResume']);
+      return {
+        activePersona: stored.activePersona || 'custom',
+        customResume: stored.customResume || null
+      };
+    }
   } catch {
-    return { activePersona: 'custom', customResume: null };
+    // Ignore error
   }
+  return { activePersona: 'custom', customResume: null };
 }
 
 // ── Smart Job Description Extractor ──
@@ -135,82 +174,7 @@ function extractJobInfo(card) {
   return { title, company, location };
 }
 
-// ── Scan In-Feed Card & Attach Minimal Inline Fit Pill ──
-async function scanCard(card) {
-  if (scannedCards.has(card)) return;
-  scannedCards.add(card);
 
-  const { title, company, location } = extractJobInfo(card);
-  if (!title || title.length < 3) return;
-
-  const targetContainer = card.querySelector(
-    '.artdeco-entity-lockup__content, .job-card-container__primary-description, .job-card-list__title, .artdeco-entity-lockup'
-  ) || card;
-
-  const badge = document.createElement('div');
-  badge.className = 'careerradar-inline-badge';
-  badge.style.cssText = 'display:inline-flex; align-items:center; gap:4px; margin-top:4px; font-size:10px; font-family:ui-monospace, monospace; z-index:99;';
-  badge.innerHTML = `<span style="color:#71717a; background:#f4f4f5; border:1px solid #e4e4e7; border-radius:4px; padding:1px 5px;">⚡ Checking Fit...</span>`;
-  targetContainer.insertAdjacentElement('beforeend', badge);
-
-  const { activePersona, customResume } = await getActiveCandidate();
-
-  try {
-    const res = await fetch(`${BACKEND_URL}/api/scan-job`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        job: {
-          id: 'card-' + Math.random().toString(36).slice(2, 9),
-          title,
-          company: company || 'Company',
-          location: location || 'Location',
-          description: `${title} at ${company}. Required qualifications and experience.`
-        },
-        resume: activePersona,
-        customResume
-      })
-    });
-
-    if (!res.ok) {
-      badge.remove();
-      return;
-    }
-
-    const data = await res.json();
-    if (data && data.verdict) {
-      const isCanApply = data.verdict === 'can_apply';
-      const isReach = data.verdict === 'reach_apply';
-      const isExpMismatch = data.verdict === 'experience_mismatch';
-
-      let bg = '#e11d48';
-      let label = 'MISMATCH';
-      if (isCanApply) {
-        bg = '#16a34a';
-        label = 'CAN APPLY';
-      } else if (isReach) {
-        bg = '#d97706';
-        label = 'REACH FIT';
-      } else if (isExpMismatch) {
-        bg = '#e11d48';
-        label = 'EXP GAP';
-      }
-
-      badge.innerHTML = `
-        <span style="background:${bg}; color:#ffffff; font-weight:700; padding:2px 6px; border-radius:4px; text-transform:uppercase; letter-spacing:0.04em;">
-          ${label}
-        </span>
-        <span style="color:#52525b; font-weight:600; background:#f4f4f5; border:1px solid #e4e4e7; padding:1px 5px; border-radius:4px;">
-          ★ ${data.techScore?.toFixed(1) || '3.0'}/4.0 Tech
-        </span>
-      `;
-    } else {
-      badge.remove();
-    }
-  } catch {
-    badge.remove();
-  }
-}
 
 // ── Floating Corner Pill for Continuous Visibility ──
 function renderFloatingPill(data, verdictTitle, verdictColor, reqExp, candExp) {
@@ -619,17 +583,16 @@ function showImmediateLoadingState(title = '', company = '', jobId = null) {
   if (dComp) dComp.innerText = company || 'Evaluating fit...';
   if (dockBadge) dockBadge.innerText = '...';
 
-  // Clear stale evaluation & notify side panel immediately
-  chrome.storage.local.remove('activeJobEvaluation').catch(() => {});
-  chrome.storage.local.set({
+  // Notify side panel & storage defensively
+  safeStorageSet({
     activeJobEvaluating: { title, company, jobId, timestamp: Date.now() }
-  }).catch(() => {});
-  chrome.runtime.sendMessage({
+  });
+  safeSendMessage({
     type: 'JOB_EVALUATING',
     title,
     company,
     jobId
-  }).catch(() => {});
+  });
 }
 
 // ── Smart Detail Pane Watcher ──
@@ -855,19 +818,21 @@ function renderVerdictBanner(data, title, company, location, description, jobId)
   }
 
   // 4. Save to shared storage so Side Panel receives it 100% reliably
-  chrome.storage.local.remove('activeJobEvaluating').catch(() => {});
   const evalPayload = {
     data,
     scraped: { title, company, location, description, jobId },
     timestamp: Date.now()
   };
-  chrome.storage.local.set({ activeJobEvaluation: evalPayload }).catch(() => {});
+  safeStorageSet({
+    activeJobEvaluation: evalPayload,
+    activeJobEvaluating: null
+  });
 
   // Broadcast to side panel
-  chrome.runtime.sendMessage({
+  safeSendMessage({
     type: 'JOB_EVALUATED_AUTOMATICALLY',
     ...evalPayload
-  }).catch(() => {});
+  });
 }
 
 // ── Prominent TypeSafe On-Screen Banner on Active Job View ──
@@ -956,22 +921,7 @@ async function updateActiveJobBanner(force = false, hintJobId = null, hintTitle 
   }
 }
 
-// ── Feed Mutation Scanner & Watchdogs ──
-function getPlatformCardSelectors() {
-  if (isLinkedIn) {
-    return '.jobs-search-results__list-item, .job-card-container, .jobs-search-results-list__list-item, li[data-occludable-job-id], div[data-job-id], .scaffold-layout__list-item, div.job-card-job-posting-card-wrapper';
-  }
-  if (isIndeed) {
-    return '.job_seen_beacon, div.cardOutline, td.resultContent';
-  }
-  if (isWellfound) {
-    return '[data-test="JobSearchResult"], .styles_jobListing__';
-  }
-  if (isYC) {
-    return '.job-details, .company-summary';
-  }
-  return '';
-}
+
 
 function triggerAutoEvaluation(force = false) {
   if (scanDebounceTimer) clearTimeout(scanDebounceTimer);
