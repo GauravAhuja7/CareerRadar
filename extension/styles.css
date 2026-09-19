@@ -664,6 +664,7 @@ body {
   background: var(--cr-surface-muted);
   border-radius: var(--cr-radius-pill);
   overflow: hidden;
+  margin-top: 2px;
 }
 
 .cr-metric-progress-fill {
@@ -1009,7 +1010,9 @@ body {
   box-shadow: var(--cr-shadow-lg);
   padding: 14px 16px 18px;
   transform: translateY(100%);
-  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  visibility: hidden;
+  pointer-events: none;
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.25s;
   z-index: 1000;
   max-height: 85vh;
   overflow-y: auto;
@@ -1017,6 +1020,8 @@ body {
 
 .cr-reasoning-drawer.open {
   transform: translateY(0);
+  visibility: visible;
+  pointer-events: auto;
 }
 
 .cr-drawer-backdrop {
