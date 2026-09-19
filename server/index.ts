@@ -546,15 +546,103 @@ app.post('/api/scan-job', async (req, res) => {
       ((techScore / 4) * 0.5 + (expScore / 4) * 0.25 + interviewOdds * 0.25) * 100
     );
 
+    // Build Structured Evidence Rows ("Why this verdict")
+    const evidence: Array<{ text: string; tag: string; status: 'strong' | 'good' | 'stretch' | 'mismatch'; isStretch?: boolean }> = [];
+    if (/kafka|event|pipeline/i.test(fullJobText) || /kafka/i.test(resumeText)) {
+      evidence.push({ text: 'Kafka / Event-driven systems', tag: 'Strong match', status: 'strong' });
+    }
+    if (/aws|cloud|s3|rds/i.test(fullJobText) || /aws/i.test(resumeText)) {
+      evidence.push({ text: 'AWS cloud architecture & services', tag: 'Strong match', status: 'strong' });
+    }
+    if (/backend|java|spring|node|api/i.test(fullJobText) || /backend|node|spring/i.test(resumeText)) {
+      evidence.push({ text: 'Backend engineering (Java, Spring Boot, etc.)', tag: 'Good match', status: 'good' });
+    }
+    if (/ai|ml|python|catboost|llm/i.test(fullJobText) || /ai|ml|python/i.test(resumeText)) {
+      evidence.push({ text: 'AI/ML experience (relevant projects)', tag: 'Good match', status: 'good' });
+    }
+
+    // Add experience gap / stretch item
+    const isReach = verdictChoice === 'reach_apply';
+    const isMismatch = verdictChoice === 'experience_mismatch' || verdictChoice === 'skill_mismatch';
+    if (isReach) {
+      evidence.push({
+        text: `Less formal experience (${candidate.experienceYears} yrs vs ${expInfo.requiredExpStr || '3–5 yrs'})`,
+        tag: 'Manageable stretch',
+        status: 'stretch',
+        isStretch: true
+      });
+    } else if (isMismatch) {
+      evidence.push({
+        text: `Formal tenure gap (${candidate.experienceYears} yrs vs ${expInfo.requiredExpStr || '5+ yrs'})`,
+        tag: 'Tenure gap',
+        status: 'mismatch',
+        isStretch: true
+      });
+    } else {
+      evidence.push({
+        text: `Formal experience satisfied (${candidate.experienceYears} yrs aligns with ${expInfo.requiredExpStr || 'requirements'})`,
+        tag: 'Qualified',
+        status: 'strong'
+      });
+    }
+
+    // Build Technical Alignment Percentages
+    const technicalAlignment = [
+      { skill: 'Kafka / Event Systems', percentage: Math.min(95, Math.round(80 + (techScore - 2.5) * 6)) },
+      { skill: 'AWS / Cloud', percentage: Math.min(95, Math.round(75 + (techScore - 2.5) * 5)) },
+      { skill: 'Backend Engineering', percentage: Math.min(92, Math.round(70 + (techScore - 2.5) * 5)) },
+      { skill: 'AI / ML', percentage: Math.min(90, Math.round(65 + (techScore - 2.5) * 5)) }
+    ];
+
+    // Experience Comparison Spec
+    const reqDisplay = expInfo.hasExplicitYears
+      ? expInfo.requiredExpStr.replace(' years', ' yrs')
+      : (expInfo.isSenior ? '3 – 5 yrs' : (expInfo.isJunior ? '0 – 2 yrs' : '2 – 4 yrs'));
+
+    const experienceComparison = {
+      required: reqDisplay,
+      candidate: `${candidate.experienceYears} yrs`,
+      evaluationType: expInfo.hasExplicitYears ? 'YEARS-FILTER' : 'SCOPE-BASED',
+      note: isReach
+        ? 'Scope-based evaluation · Manageable stretch'
+        : (isMismatch ? 'Strict tenure filters · High screening barrier' : 'Direct experience match · Fully qualified')
+    };
+
+    const verdictHeadline = verdictChoice === 'can_apply'
+      ? 'STRONG FIT'
+      : (verdictChoice === 'reach_apply'
+        ? 'REACH APPLY'
+        : (verdictChoice === 'experience_mismatch' ? 'EXP MISMATCH' : 'SKILL MISMATCH'));
+
+    const verdictSubtext = verdictChoice === 'can_apply'
+      ? 'Technical depth and deliverables strongly match role expectations.'
+      : (verdictChoice === 'reach_apply'
+        ? 'Technical match is strong; experience is the main stretch.'
+        : (verdictChoice === 'experience_mismatch'
+          ? 'Hard senior tenure filter likely to flag application automatically.'
+          : 'Distinct engineering discipline and core tech stack.'));
+
+    const badgeLabel = verdictChoice === 'can_apply'
+      ? 'DIRECT FIT'
+      : (verdictChoice === 'reach_apply'
+        ? 'COMPETITIVE CONTENDER'
+        : (verdictChoice === 'experience_mismatch' ? 'TENURE FILTER' : 'DISCIPLINE GAP'));
+
     res.json({
       jobId: job.id,
       ms,
       matchPercentage,
       verdict: verdictChoice,
+      verdictHeadline,
+      verdictSubtext,
+      badgeLabel,
       verdictConfidence,
       techScore,
       expScore,
       interviewOdds,
+      evidence,
+      technicalAlignment,
+      experienceComparison,
       verdictProbabilities: a.decision_verdict?.probabilities ?? {},
       model: response.model,
       tokens: response.usage,
@@ -566,11 +654,7 @@ app.post('/api/scan-job', async (req, res) => {
         hasExplicitYears: expInfo.hasExplicitYears,
         matchedDeliverables,
         domainGaps,
-        summaryVerdict: verdictChoice === 'can_apply'
-          ? `CAN APPLY — High Fit! Your systems background aligns with role expectations (${expInfo.hasExplicitYears ? expInfo.requiredExpStr : 'Scope-based fit'})`
-          : (verdictChoice === 'reach_apply'
-            ? `REACH APPLY — You have ${candidate.experienceYears}y vs ${expInfo.hasExplicitYears ? expInfo.requiredExpStr + ' req' : expInfo.requiredExpStr}, but your Kafka/AWS systems background makes you a strong contender`
-            : (verdictChoice === 'experience_mismatch' ? `EXP MISMATCH — Role demands senior tenure (${expInfo.requiredExpStr})` : 'SKILL MISMATCH — Distinct domain focus'))
+        summaryVerdict: verdictSubtext
       },
       rawAnswers: a
     });

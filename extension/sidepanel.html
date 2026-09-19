@@ -2,261 +2,500 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>CareerRadar — Real-Time Job Decision Engine</title>
+  <title>CareerRadar — Real-Time Job Fit Copilot</title>
   <link rel="stylesheet" href="styles.css">
-  <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-      padding: 12px;
-      background: #fafafa;
-      color: #09090b;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Inter", "Helvetica Neue", sans-serif;
-      font-size: 13px;
-      line-height: 1.5;
-      -webkit-font-smoothing: antialiased;
-    }
-
-    .btn {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 6px;
-      width: 100%;
-      padding: 7px 12px;
-      border-radius: 6px;
-      font-weight: 600;
-      font-size: 11.5px;
-      cursor: pointer;
-      border: 1px solid transparent;
-      transition: all 0.15s ease;
-      text-align: center;
-    }
-    .btn-primary {
-      background: #09090b;
-      color: #ffffff;
-      border-color: #09090b;
-    }
-    .btn-primary:hover {
-      background: #27272a;
-    }
-    .btn-primary:disabled {
-      opacity: 0.6;
-      cursor: not-allowed;
-    }
-    .btn-secondary {
-      background: #ffffff;
-      color: #18181b;
-      border-color: #e4e4e7;
-    }
-    .btn-secondary:hover {
-      background: #f4f4f5;
-    }
-  </style>
 </head>
 <body>
-  <!-- Header with Brand and Profile Quick Trigger -->
-  <div class="cr-header">
-    <div class="cr-brand">
-      <svg class="cr-brand-logo" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
-      </svg>
-      <span class="cr-brand-title">CareerRadar</span>
-      <span class="cr-badge-live">Live</span>
-    </div>
+  <div class="cr-shell">
 
-    <!-- Profile Chip in Header: Clean & Un-slopped -->
-    <button id="header-profile-chip" class="cr-profile-chip" title="Click to view or edit your resume profile">
-      <span id="header-profile-text">Gaurav (1.5 yrs)</span>
-      <span style="font-size:9px; opacity:0.5;">▾</span>
-    </button>
-  </div>
-
-  <!-- Active Job Context Bar (Ultra-compact Inspector) -->
-  <div class="cr-card cr-card-compact" style="margin-bottom:10px;">
-    <div class="cr-job-active-bar">
-      <div style="flex:1; min-width:0;">
-        <div id="active-tab-title" class="cr-job-title">Detecting active job page...</div>
-        <div id="active-tab-url" class="cr-job-meta">Reading browser context...</div>
+    <!-- Top Header -->
+    <header class="cr-header">
+      <div class="cr-brand">
+        <!-- Modern Stacked Radar Logo -->
+        <svg class="cr-logo-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+          <path d="M2 17l10 5 10-5"/>
+          <path d="M2 12l10 5 10-5"/>
+        </svg>
+        <div class="cr-brand-info">
+          <div class="cr-brand-title-row">
+            <span class="cr-brand-name">CareerRadar</span>
+            <span class="cr-badge-live">Live</span>
+          </div>
+          <span class="cr-brand-subline">Real-time job fit copilot for developers</span>
+        </div>
       </div>
-      <button id="btn-quick-refresh" class="cr-btn-ghost" title="Re-scan active job (⌘R)">
-        ↻ Scan
+      <div class="cr-header-actions">
+        <button id="btn-quick-refresh" class="cr-icon-btn" title="Re-scan active job (⌘R)">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+            <path d="M3 3v5h5"/>
+            <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/>
+            <path d="M16 21h5v-5"/>
+          </svg>
+        </button>
+        <button id="btn-header-edit-profile" class="cr-icon-btn" title="Edit Resume Profile">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/>
+            <circle cx="12" cy="12" r="3"/>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- Candidate Profile Bar -->
+    <div class="cr-profile-bar">
+      <div class="cr-profile-left">
+        <div class="cr-avatar-circle" id="profile-avatar">
+          GA
+          <span class="cr-avatar-dot"></span>
+        </div>
+        <div class="cr-profile-meta">
+          <div class="cr-profile-title-line" id="profile-name-line">Gaurav · 1.5 yrs · Backend / AI</div>
+          <div class="cr-profile-subline" id="profile-sub-line">IIT Mandi · Open to opportunities</div>
+        </div>
+      </div>
+      <button id="btn-toggle-profile-editor" class="cr-btn-edit">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/>
+        </svg>
+        Edit
       </button>
     </div>
-  </div>
 
-  <!-- Candidate Profile Editor Card (Collapsible, Defaults to Hidden Once Saved) -->
-  <div id="profile-container-card" class="cr-card cr-card-compact" style="display:none; margin-bottom:10px; border:1px solid #d4d4d8; background:#ffffff;">
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; padding-bottom:6px; border-bottom:1px solid #f4f4f5;">
-      <strong id="display-profile-name" style="font-size:12px; color:#09090b;">Resume Profile</strong>
-      <button id="btn-hide-profile-card" class="cr-btn-ghost" style="font-size:10px; padding:2px 6px;" title="Hide profile to see verdict at the top">
-        ✕ Hide
-      </button>
-    </div>
-
-    <!-- Single Resume Upload Zone -->
-    <div style="margin-bottom:8px;">
-      <label for="resume-file-input" class="btn btn-secondary" style="margin:0; font-size:11px; padding:7px 10px; cursor:pointer; width:100%; border:1px dashed #a1a1aa; background:#fafafa;">
-        📁 Upload Resume (PDF / TXT)
-      </label>
-      <input type="file" id="resume-file-input" accept=".pdf,.txt,.md" style="display:none;" />
-    </div>
-
-    <!-- Paste Text Fallback -->
-    <details style="font-size:11px; color:#71717a; margin-bottom:8px;">
-      <summary style="cursor:pointer; font-weight:500;">Edit or paste raw resume text</summary>
-      <textarea id="custom-resume-input" rows="3" placeholder="Paste resume text here..." style="width:100%; margin-top:4px; font-size:11px; font-family:ui-monospace, monospace; background:#ffffff; border:1px solid #d4d4d8; border-radius:6px; color:#09090b; padding:6px; resize:vertical; outline:none;"></textarea>
-    </details>
-
-    <!-- Extracted Profile Intelligence -->
-    <div id="parsed-metadata-panel" style="display:none; background:#f4f4f5; border:1px solid #e4e4e7; border-radius:6px; padding:8px; margin-bottom:8px;">
-      <div style="font-size:10px; text-transform:uppercase; font-family:ui-monospace, monospace; color:#71717a; font-weight:700; margin-bottom:4px;">
-        Profile Signals
+    <!-- Collapsible Resume Profile Editor Panel -->
+    <div id="profile-container-card" class="cr-profile-editor">
+      <div class="cr-editor-header">
+        <strong style="font-size:11.5px; color:var(--cr-text-primary);">Calibrate Resume Profile</strong>
+        <button id="btn-hide-profile-card" class="cr-icon-btn" style="width:20px; height:20px; font-size:11px;">✕</button>
       </div>
-      <div id="meta-education" style="font-size:11px; color:#18181b; margin-bottom:3px;"></div>
-      <div id="meta-experience" style="font-size:11px; color:#18181b; margin-bottom:3px;"></div>
-      <div id="meta-systems" style="font-size:11px; color:#3f3f46; margin-bottom:3px;"></div>
-      <div id="meta-achievements" style="font-size:11px; color:#059669; font-weight:600; margin-bottom:6px;"></div>
 
-      <div style="padding-top:6px; border-top:1px solid #e4e4e7; display:flex; justify-content:space-between; align-items:center; gap:8px;">
+      <!-- Single File Upload Zone -->
+      <div style="margin-bottom:8px;">
+        <label for="resume-file-input" style="display:block; text-align:center; padding:7px 10px; font-size:11px; font-weight:600; border:1px dashed var(--cr-border-strong); border-radius:var(--cr-radius-sm); background:var(--cr-surface-subtle); cursor:pointer; color:var(--cr-text-secondary); transition:all 0.15s ease;">
+          📁 Upload Resume (PDF / TXT)
+        </label>
+        <input type="file" id="resume-file-input" accept=".pdf,.txt,.md" style="display:none;" />
+      </div>
+
+      <details style="font-size:10.5px; color:var(--cr-text-muted); margin-bottom:8px;">
+        <summary style="cursor:pointer; font-weight:500;">Paste raw resume text</summary>
+        <textarea id="custom-resume-input" rows="3" placeholder="Paste resume plain text..." style="width:100%; margin-top:4px; font-size:10.5px; font-family:var(--cr-font-mono); background:var(--cr-surface); border:1px solid var(--cr-border); border-radius:var(--cr-radius-sm); color:var(--cr-text-primary); padding:6px; resize:vertical; outline:none;"></textarea>
+      </details>
+
+      <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; padding-top:6px; border-top:1px solid var(--cr-border-subtle); margin-bottom:8px;">
         <div style="display:flex; align-items:center; gap:4px;">
-          <label style="font-size:11px; color:#52525b;">Exp:</label>
-          <input type="number" id="override-years" step="0.5" min="0" max="20" style="width:50px; padding:2px 4px; font-size:11px; border:1px solid #d4d4d8; border-radius:4px; font-family:ui-monospace, monospace;" />
-          <span style="font-size:10px; color:#71717a;">yrs</span>
+          <label style="font-size:11px; color:var(--cr-text-muted);">Exp:</label>
+          <input type="number" id="override-years" value="1.5" step="0.5" min="0" max="20" style="width:48px; padding:2px 4px; font-size:11px; border:1px solid var(--cr-border); border-radius:var(--cr-radius-xs); font-family:var(--cr-font-mono);" />
+          <span style="font-size:10px; color:var(--cr-text-muted);">yrs</span>
         </div>
         <div style="display:flex; align-items:center; gap:4px;">
-          <label style="font-size:11px; color:#52525b;">Tier:</label>
-          <select id="override-seniority" style="padding:2px 4px; font-size:11px; border:1px solid #d4d4d8; border-radius:4px; background:#fff;">
-            <option value="Junior">Junior (Mentored)</option>
-            <option value="Mid-Level">Mid-Level (Autonomous)</option>
-            <option value="Senior">Senior (Staff/Lead)</option>
+          <label style="font-size:11px; color:var(--cr-text-muted);">Tier:</label>
+          <select id="override-seniority" style="padding:2px 4px; font-size:10.5px; border:1px solid var(--cr-border); border-radius:var(--cr-radius-xs); background:#fff;">
+            <option value="Junior">Junior</option>
+            <option value="Mid-Level" selected>Mid-Level</option>
+            <option value="Senior">Senior</option>
           </select>
         </div>
       </div>
+
+      <div style="display:flex; gap:6px;">
+        <button id="btn-save-resume" class="cr-btn-primary" style="flex:1; padding:6px 10px; font-size:11px;">
+          Save Profile
+        </button>
+        <button id="btn-done-hide-profile" class="cr-btn-secondary" style="width:auto; padding:6px 10px; font-size:11px;">
+          Done
+        </button>
+      </div>
+      <div id="resume-saved-status" style="font-size:10.5px; color:var(--cr-green-accent); font-weight:600; margin-top:4px; display:none;">✓ Profile saved & calibrated</div>
     </div>
 
-    <div style="display:flex; gap:6px;">
-      <button id="btn-save-resume" class="btn btn-primary" style="flex:1; padding:7px 10px; font-size:11px;">
-        Save & Sync Profile
-      </button>
-      <button id="btn-done-hide-profile" class="btn btn-secondary" style="width:auto; padding:7px 10px; font-size:11px;">
-        Done ▴
-      </button>
+    <!-- Active Job Context Bar -->
+    <div class="cr-job-context-bar">
+      <div class="cr-job-context-info">
+        <div class="cr-job-icon-box">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect width="16" height="20" x="4" y="2" rx="2" ry="2"/>
+            <path d="M9 22v-4h6v4"/>
+            <path d="M8 6h.01M16 6h.01M8 10h.01M16 10h.01M8 14h.01M16 14h.01"/>
+          </svg>
+        </div>
+        <div class="cr-job-text-group">
+          <div id="active-tab-title" class="cr-job-title">DevOps Engineer</div>
+          <div id="active-tab-url" class="cr-job-company">Detected Company</div>
+        </div>
+      </div>
+      <div class="cr-job-actions">
+        <a id="btn-view-job-link" class="cr-btn-job-action" href="#" title="Open job page in active tab">
+          View Job
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M15 3h6v6M10 14L21 3M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+          </svg>
+        </a>
+      </div>
     </div>
-    <div id="resume-saved-status" style="font-size:11px; color:#16a34a; font-weight:600; margin-top:4px; display:none;">✓ Profile saved & collapsed</div>
-  </div>
 
-  <!-- Error Alert Container -->
-  <div id="error-box" class="cr-card" style="display:none; background:#fef2f2; border-color:#fecaca; color:#991b1b; padding:10px 12px; margin-bottom:10px;">
-    <div style="font-weight:600; font-size:11.5px; margin-bottom:2px;">Notice</div>
-    <div id="error-message" style="font-size:11px; line-height:1.4;"></div>
-  </div>
+    <!-- Shimmer Loading Skeleton -->
+    <div id="loading-skeleton-container" class="cr-section-card" style="display:none; padding:14px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+        <div style="display:flex; align-items:center; gap:6px;">
+          <span class="cr-spin" style="font-size:12px; color:var(--cr-text-primary);">⬡</span>
+          <strong id="skeleton-status-title" style="font-size:10.5px; font-family:var(--cr-font-mono); text-transform:uppercase; letter-spacing:0.04em;">
+            Arbitrating Fit...
+          </strong>
+        </div>
+        <span class="cr-badge-live">Jev System One</span>
+      </div>
+      <div class="cr-skeleton-shimmer" style="width:60%; height:26px; margin-bottom:8px;"></div>
+      <div class="cr-skeleton-shimmer" style="width:90%; height:12px; margin-bottom:14px;"></div>
+      <div class="cr-metrics-row" style="margin-bottom:12px;">
+        <div class="cr-metric-card"><div class="cr-skeleton-shimmer" style="width:80%; height:20px;"></div></div>
+        <div class="cr-metric-card"><div class="cr-skeleton-shimmer" style="width:80%; height:20px;"></div></div>
+        <div class="cr-metric-card"><div class="cr-skeleton-shimmer" style="width:80%; height:20px;"></div></div>
+      </div>
+      <div class="cr-skeleton-shimmer" style="width:100%; height:40px;"></div>
+    </div>
 
-  <!-- Loading Skeleton State -->
-  <div id="loading-skeleton-container" class="cr-card" style="display:none; padding:12px; margin-bottom:10px;">
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; padding-bottom:6px; border-bottom:1px solid #f4f4f5;">
+    <!-- ====================================================================
+         Primary Verdict Module (Dominant & Restrained)
+         ==================================================================== -->
+    <div id="verdict-container" class="cr-verdict-box">
+      <div class="cr-verdict-header-line">
+        <div class="cr-verdict-badge-tag">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/>
+            <circle cx="12" cy="12" r="6"/>
+            <circle cx="12" cy="12" r="2"/>
+          </svg>
+          <span>CareerRadar Verdict</span>
+        </div>
+        <span id="verdict-status-badge" class="cr-verdict-status-pill">Competitive Contender</span>
+      </div>
+
+      <div class="cr-verdict-main-row">
+        <div class="cr-verdict-copy">
+          <h1 id="verdict-headline" class="cr-verdict-headline">REACH APPLY</h1>
+          <p id="verdict-subtext" class="cr-verdict-subtext">
+            Technical match is strong; experience is the main stretch.
+          </p>
+        </div>
+
+        <!-- Restrained Circular Fit Score Gauge -->
+        <div class="cr-gauge-container">
+          <svg class="cr-gauge-svg" viewBox="0 0 80 80">
+            <circle class="cr-gauge-bg-circle" cx="40" cy="40" r="32"/>
+            <circle id="gauge-bar-circle" class="cr-gauge-bar-circle" cx="40" cy="40" r="32" stroke-dasharray="201.06" stroke-dashoffset="76.4"/>
+          </svg>
+          <div class="cr-gauge-inner-label">
+            <span id="gauge-percent-text" class="cr-gauge-percent-num">62%</span>
+            <span class="cr-gauge-score-sub">Fit Score</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Core Metrics: 3 Horizontal Tiles in 1 Row -->
+    <div class="cr-metrics-row">
+      <!-- Metric 1: Fit Score -->
+      <div class="cr-metric-card">
+        <div class="cr-metric-card-header">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="20" x2="18" y2="10"/>
+            <line x1="12" y1="20" x2="12" y2="4"/>
+            <line x1="6" y1="20" x2="6" y2="14"/>
+          </svg>
+          <span>Fit Score</span>
+        </div>
+        <div class="cr-metric-card-value" id="metric-fit-score">62%</div>
+        <div class="cr-metric-progress-track">
+          <div id="metric-fit-bar" class="cr-metric-progress-fill" style="width: 62%;"></div>
+        </div>
+      </div>
+
+      <!-- Metric 2: Systems Synergy -->
+      <div class="cr-metric-card">
+        <div class="cr-metric-card-header">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="12 2 2 7 12 12 22 7 12 2"/>
+            <polyline points="2 17 12 22 22 17"/>
+            <polyline points="2 12 12 17 22 12"/>
+          </svg>
+          <span>Systems Synergy</span>
+        </div>
+        <div class="cr-metric-card-value">
+          <span id="metric-systems-score">2.9</span><span class="cr-metric-card-unit">/ 4</span>
+        </div>
+        <div class="cr-metric-progress-track">
+          <div id="metric-systems-bar" class="cr-metric-progress-fill" style="width: 72.5%;"></div>
+        </div>
+      </div>
+
+      <!-- Metric 3: Screen Odds -->
+      <div class="cr-metric-card">
+        <div class="cr-metric-card-header">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/>
+            <polyline points="16 7 22 7 22 13"/>
+          </svg>
+          <span>Screen Odds</span>
+        </div>
+        <div class="cr-metric-card-value" id="metric-screen-odds">54%</div>
+        <div class="cr-metric-progress-track">
+          <div id="metric-odds-bar" class="cr-metric-progress-fill" style="width: 54%;"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- "Why this verdict" Evidence Section -->
+    <div class="cr-section-card">
+      <div class="cr-section-header">
+        <div class="cr-section-title-group">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect width="20" height="14" x="2" y="7" rx="2" ry="2"/>
+            <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>
+          </svg>
+          <span>Why this verdict</span>
+        </div>
+      </div>
+      <div id="evidence-list" class="cr-evidence-list">
+        <!-- Dynamic or Initial Evidence Rows -->
+        <div class="cr-evidence-item">
+          <div class="cr-evidence-left">
+            <svg class="cr-evidence-icon icon-strong" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+              <polyline points="22 4 12 14.01 9 11.01"/>
+            </svg>
+            <span class="cr-evidence-text">Kafka / Event-driven systems</span>
+          </div>
+          <span class="cr-evidence-tag tag-strong">Strong match</span>
+        </div>
+
+        <div class="cr-evidence-item">
+          <div class="cr-evidence-left">
+            <svg class="cr-evidence-icon icon-strong" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+              <polyline points="22 4 12 14.01 9 11.01"/>
+            </svg>
+            <span class="cr-evidence-text">AWS cloud architecture & services</span>
+          </div>
+          <span class="cr-evidence-tag tag-strong">Strong match</span>
+        </div>
+
+        <div class="cr-evidence-item">
+          <div class="cr-evidence-left">
+            <svg class="cr-evidence-icon icon-good" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+              <polyline points="22 4 12 14.01 9 11.01"/>
+            </svg>
+            <span class="cr-evidence-text">Backend engineering (Java, Spring Boot, etc.)</span>
+          </div>
+          <span class="cr-evidence-tag tag-good">Good match</span>
+        </div>
+
+        <div class="cr-evidence-item">
+          <div class="cr-evidence-left">
+            <svg class="cr-evidence-icon icon-good" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+              <polyline points="22 4 12 14.01 9 11.01"/>
+            </svg>
+            <span class="cr-evidence-text">AI/ML experience (relevant projects)</span>
+          </div>
+          <span class="cr-evidence-tag tag-good">Good match</span>
+        </div>
+
+        <div class="cr-evidence-item">
+          <div class="cr-evidence-left">
+            <svg class="cr-evidence-icon icon-stretch" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"/>
+              <line x1="12" y1="8" x2="12" y2="12"/>
+              <line x1="12" y1="16" x2="12.01" y2="16"/>
+            </svg>
+            <span class="cr-evidence-text" id="evidence-experience-gap">Less formal experience (1.5 yrs vs 3–5 yrs)</span>
+          </div>
+          <span class="cr-evidence-tag tag-stretch">Manageable stretch</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Compact Experience Comparison -->
+    <div class="cr-exp-box">
+      <div class="cr-section-header" style="margin-bottom:2px;">
+        <div class="cr-section-title-group">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect width="20" height="14" x="2" y="7" rx="2" ry="2"/>
+            <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>
+          </svg>
+          <span>Experience</span>
+        </div>
+        <span id="exp-eval-type-badge" class="cr-verdict-status-pill" style="background:#f1f5f9; color:#475569; border-color:#cbd5e1;">
+          Scope-Based
+        </span>
+      </div>
+
+      <div class="cr-exp-compare-row">
+        <span id="exp-req-display" class="cr-exp-req-num">3 – 5 yrs</span>
+        <span class="cr-exp-req-label">required</span>
+        <span class="cr-exp-arrow">→</span>
+        <span id="exp-cand-display" class="cr-exp-cand-num">1.5 yrs</span>
+        <span class="cr-exp-cand-label">you</span>
+      </div>
+      <div id="exp-note-display" class="cr-exp-note-text">
+        Scope-based evaluation · Manageable stretch
+      </div>
+    </div>
+
+    <!-- Technical Alignment Section -->
+    <div class="cr-section-card">
+      <div class="cr-section-header">
+        <div class="cr-section-title-group">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="16 18 22 12 16 6"/>
+            <polyline points="8 6 2 12 8 18"/>
+          </svg>
+          <span>Technical alignment</span>
+        </div>
+        <span class="cr-section-subtitle">Based on job requirements</span>
+      </div>
+
+      <div id="technical-alignment-list" class="cr-tech-list">
+        <div class="cr-tech-row">
+          <span class="cr-tech-skill">Kafka / Event Systems</span>
+          <div class="cr-tech-bar-track">
+            <div class="cr-tech-bar-fill" style="width: 85%;"></div>
+          </div>
+          <span class="cr-tech-percent">85%</span>
+        </div>
+        <div class="cr-tech-row">
+          <span class="cr-tech-skill">AWS / Cloud</span>
+          <div class="cr-tech-bar-track">
+            <div class="cr-tech-bar-fill" style="width: 80%;"></div>
+          </div>
+          <span class="cr-tech-percent">80%</span>
+        </div>
+        <div class="cr-tech-row">
+          <span class="cr-tech-skill">Backend Engineering</span>
+          <div class="cr-tech-bar-track">
+            <div class="cr-tech-bar-fill" style="width: 75%;"></div>
+          </div>
+          <span class="cr-tech-percent">75%</span>
+        </div>
+        <div class="cr-tech-row">
+          <span class="cr-tech-skill">AI / ML</span>
+          <div class="cr-tech-bar-track">
+            <div class="cr-tech-bar-fill" style="width: 70%;"></div>
+          </div>
+          <span class="cr-tech-percent">70%</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bottom Action Area -->
+    <div class="cr-action-area">
+      <button id="btn-apply-anyway" class="cr-btn-primary" title="Copy strategic outreach pitch and proceed (⌘↵)">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="22" y1="2" x2="11" y2="13"/>
+          <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+        </svg>
+        <span>Apply anyway</span>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="opacity:0.6; margin-left:auto;">
+          <polyline points="9 18 15 12 9 6"/>
+        </svg>
+      </button>
+
+      <div class="cr-btn-secondary-row">
+        <button id="btn-view-reasoning" class="cr-btn-secondary" title="View detailed Jev System One reasoning">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <polyline points="14 2 14 8 20 8"/>
+            <line x1="16" y1="13" x2="8" y2="13"/>
+            <line x1="16" y1="17" x2="8" y2="17"/>
+            <polyline points="10 9 9 9 8 9"/>
+          </svg>
+          <span>View reasoning</span>
+        </button>
+
+        <button id="btn-open-job" class="cr-btn-secondary" title="Focus or open active job application">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M15 3h6v6M10 14L21 3M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+          </svg>
+          <span>Open job</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Telemetry Footer -->
+    <footer class="cr-footer">
+      <span>Not advice. Just a better signal.</span>
+      <span id="footer-telemetry" class="cr-footer-latency">Analyzed in 1138ms</span>
+    </footer>
+
+  </div><!-- /cr-shell -->
+
+  <!-- Progressive Disclosure Reasoning Drawer Backdrop -->
+  <div id="reasoning-backdrop" class="cr-drawer-backdrop"></div>
+
+  <!-- Progressive Disclosure Reasoning Drawer (Bottom Slide-Up Sheet) -->
+  <div id="reasoning-drawer" class="cr-reasoning-drawer">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; padding-bottom:8px; border-bottom:1px solid var(--cr-border-subtle);">
       <div style="display:flex; align-items:center; gap:6px;">
-        <span class="careerradar-spin" style="font-size:12px; color:#09090b;">⬡</span>
-        <strong id="skeleton-status-title" style="font-size:10.5px; font-family:ui-monospace, monospace; text-transform:uppercase; letter-spacing:0.04em; color:#09090b;">
-          Arbitrating Fit...
-        </strong>
+        <span class="cr-badge-live">Jev System One</span>
+        <strong style="font-size:12px; color:var(--cr-text-primary);">Decision Rubric & Evidence</strong>
       </div>
-      <span class="cr-badge-live">Jev System One</span>
+      <button id="btn-close-reasoning" class="cr-icon-btn" style="width:22px; height:22px;">✕</button>
     </div>
 
-    <div style="background:#f4f4f5; border-radius:6px; padding:8px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center;">
-      <div class="careerradar-skeleton-shimmer" style="width:50%; height:14px;"></div>
-      <div class="careerradar-skeleton-shimmer" style="width:25%; height:14px;"></div>
+    <div style="margin-bottom:12px;">
+      <div style="font-size:10px; font-family:var(--cr-font-mono); text-transform:uppercase; color:var(--cr-text-muted); font-weight:700; margin-bottom:4px;">
+        Strategic Application Rationale
+      </div>
+      <p id="drawer-deep-rationale" style="font-size:11.5px; color:var(--cr-text-secondary); line-height:1.45;">
+        Candidate exhibits strong systems alignment across Kafka event pipelines, AWS microservices, and high-concurrency architectures. While the formal job specification cites 3–5 years, candidate's verified deliverables effectively offset calendar tenure. This role represents a viable competitive stretch.
+      </p>
     </div>
 
-    <div class="cr-metrics-grid" style="margin-bottom:10px;">
-      <div class="cr-metric-tile">
-        <div class="careerradar-skeleton-shimmer" style="width:60%; height:8px; margin:0 auto 5px;"></div>
-        <div class="careerradar-skeleton-shimmer" style="width:75%; height:14px; margin:0 auto;"></div>
+    <div style="margin-bottom:12px; background:var(--cr-surface-subtle); border:1px solid var(--cr-border); border-radius:var(--cr-radius-sm); padding:8px 10px;">
+      <div style="font-size:10px; font-family:var(--cr-font-mono); text-transform:uppercase; color:var(--cr-text-muted); font-weight:700; margin-bottom:4px;">
+        Tailored Interview Pitch Highlight
       </div>
-      <div class="cr-metric-tile">
-        <div class="careerradar-skeleton-shimmer" style="width:60%; height:8px; margin:0 auto 5px;"></div>
-        <div class="careerradar-skeleton-shimmer" style="width:75%; height:14px; margin:0 auto;"></div>
-      </div>
-      <div class="cr-metric-tile">
-        <div class="careerradar-skeleton-shimmer" style="width:60%; height:8px; margin:0 auto 5px;"></div>
-        <div class="careerradar-skeleton-shimmer" style="width:75%; height:14px; margin:0 auto;"></div>
-      </div>
+      <p id="drawer-interview-pitch" style="font-size:11px; color:var(--cr-text-primary); line-height:1.4; font-weight:500;">
+        "I've built and scaled Kafka asynchronous event pipelines and AWS cloud services handling high concurrency, allowing me to contribute immediate production value to distributed systems."
+      </p>
+      <button id="btn-copy-pitch" class="cr-btn-secondary" style="margin-top:6px; font-size:10.5px; padding:4px 8px;">
+        📋 Copy Pitch Snippet
+      </button>
     </div>
 
-    <div class="careerradar-skeleton-shimmer" style="width:90%; height:10px; margin-bottom:5px;"></div>
-    <div class="careerradar-skeleton-shimmer" style="width:70%; height:10px;"></div>
+    <div>
+      <div style="font-size:10px; font-family:var(--cr-font-mono); text-transform:uppercase; color:var(--cr-text-muted); font-weight:700; margin-bottom:6px;">
+        Bayesian Probability Distribution
+      </div>
+      <div id="drawer-probabilities-list" style="display:flex; flex-direction:column; gap:4px; font-family:var(--cr-font-mono); font-size:10.5px;">
+        <div style="display:flex; justify-content:space-between;">
+          <span style="color:var(--cr-amber-title);">reach_apply:</span>
+          <strong>84%</strong>
+        </div>
+        <div style="display:flex; justify-content:space-between;">
+          <span style="color:var(--cr-green-text);">can_apply:</span>
+          <span>8%</span>
+        </div>
+        <div style="display:flex; justify-content:space-between;">
+          <span style="color:var(--cr-red-text);">experience_mismatch:</span>
+          <span>6%</span>
+        </div>
+        <div style="display:flex; justify-content:space-between;">
+          <span style="color:var(--cr-text-muted);">skill_mismatch:</span>
+          <span>2%</span>
+        </div>
+      </div>
+    </div>
   </div>
 
-  <!-- Real-Time Verdict Card (Renders immediately at top fold — Zero Scrolling Required) -->
-  <div id="verdict-container" class="cr-card" style="display:none;">
-    <!-- Hero Recommendation Banner -->
-    <div id="verdict-hero-badge" class="cr-verdict-hero cr-verdict-hero-reach-apply">
-      <div style="display:flex; align-items:center;">
-        <span id="verdict-dot" class="cr-verdict-dot cr-verdict-dot-reach-apply"></span>
-        <span id="verdict-pill">REACH APPLY · COMPETITIVE CONTENDER</span>
-      </div>
-      <div id="jev-latency" class="cr-verdict-telemetry">⚡ 320ms</div>
-    </div>
-
-    <!-- Strategic Briefing Box -->
-    <div id="summary-box" class="cr-summary-box">
-      <div id="subagent-summary-text">Analyzing role requirements and candidate experience...</div>
-    </div>
-
-    <!-- 3-Tile Metrics Dashboard -->
-    <div class="cr-metrics-grid">
-      <div class="cr-metric-tile">
-        <div class="cr-metric-label">Architecture Fit</div>
-        <div id="viability-val" class="cr-metric-val">--</div>
-        <div class="cr-metric-track">
-          <div id="viability-bar" class="cr-metric-fill" style="width:0%; background:#09090b;"></div>
-        </div>
-      </div>
-      <div class="cr-metric-tile">
-        <div class="cr-metric-label">Systems Synergy</div>
-        <div id="suitability-val" class="cr-metric-val">--</div>
-        <div class="cr-metric-track">
-          <div id="suitability-bar" class="cr-metric-fill" style="width:0%; background:#10b981;"></div>
-        </div>
-      </div>
-      <div class="cr-metric-tile">
-        <div class="cr-metric-label">Screen Odds</div>
-        <div id="interview-odds-val" class="cr-metric-val">--</div>
-        <div class="cr-metric-track">
-          <div id="interview-odds-bar" class="cr-metric-fill" style="width:0%; background:#10b981;"></div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Experience Calibration Comparison Strip -->
-    <div class="cr-calib-strip">
-      <div class="cr-calib-side">
-        <span class="cr-calib-lbl">Role Requirement</span>
-        <strong id="calib-role-req" class="cr-calib-val">--</strong>
-      </div>
-      <div class="cr-calib-divider">vs</div>
-      <div class="cr-calib-side" style="text-align:right;">
-        <span class="cr-calib-lbl">Your Profile</span>
-        <strong id="calib-cand-exp" class="cr-calib-val">--</strong>
-      </div>
-    </div>
-    <div id="calibration-note" class="cr-calib-note" style="display:none;"></div>
-
-    <!-- Matched Deliverables Chips -->
-    <div style="margin-top:9px;">
-      <div style="font-size:10.5px; font-weight:600; color:#15803d; margin-bottom:3px; text-transform:uppercase; letter-spacing:0.03em;">
-        ✓ Matched Deliverables:
-      </div>
-      <div id="matched-chips" class="cr-chips-container"></div>
-    </div>
-
-    <!-- Domain Nuance / Focus Chips -->
-    <div id="domain-nuance-section" style="margin-top:9px; display:none;">
-      <div style="font-size:10.5px; font-weight:600; color:#b45309; margin-bottom:3px; text-transform:uppercase; letter-spacing:0.03em;">
-        ⚠ Domain Nuance:
-      </div>
-      <div id="nuance-chips" class="cr-chips-container"></div>
-    </div>
+  <!-- Toast Notification -->
+  <div id="cr-toast" class="cr-toast">
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <polyline points="20 6 9 17 4 12"/>
+    </svg>
+    <span id="toast-message">Copied strategic pitch</span>
   </div>
 
   <script src="sidepanel.js"></script>
