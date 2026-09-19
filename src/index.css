@@ -1,0 +1,103 @@
+@import "tailwindcss";
+
+:root {
+  --bg-app: #ffffff;
+  --bg-sidebar: #fafafa;
+  --bg-card: #ffffff;
+  --bg-card-subtle: #f4f4f5;
+  --border-light: #e4e4e7;
+  --border-subtle: #f1f1f3;
+  --text-main: #09090b;
+  --text-muted: #71717a;
+  --text-sub: #52525b;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  color-scheme: light;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background-color: var(--bg-app);
+  color: var(--text-main);
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+
+code, pre, .font-mono {
+  font-family: 'IBM Plex Mono', 'Space Mono', monospace;
+}
+
+/* TypeSafe Minimalist Technical Borders & Cards */
+.typesafe-card {
+  background: #ffffff;
+  border: 1px solid #e4e4e7;
+  border-radius: 8px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.typesafe-card:hover {
+  border-color: #a1a1aa;
+}
+
+.typesafe-border {
+  border: 1px solid #e4e4e7;
+}
+
+.typesafe-border-b {
+  border-bottom: 1px solid #e4e4e7;
+}
+
+.typesafe-border-r {
+  border-right: 1px solid #e4e4e7;
+}
+
+/* Technical Blueprint Elements */
+.mono-label {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #71717a;
+}
+
+/* Black Stark Button */
+.btn-black {
+  background: #000000;
+  color: #ffffff;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 12px;
+  padding: 8px 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: background 0.15s ease, opacity 0.15s ease;
+}
+
+.btn-black:hover {
+  background: #27272a;
+}
+
+.btn-black:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Crisp Clean Scrollbars */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+::-webkit-scrollbar-track {
+  background: #fafafa;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #d4d4d8;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #a1a1aa;
+}

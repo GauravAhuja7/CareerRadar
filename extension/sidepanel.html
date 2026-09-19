@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>CareerRadar — TypeSafe Jev System One</title>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      padding: 12px;
+      background: #fafafa;
+      color: #09090b;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      width: 100%;
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-weight: 600;
+      font-size: 12px;
+      cursor: pointer;
+      border: 1px solid transparent;
+      transition: all 0.15s ease;
+      text-align: center;
+    }
+    .btn-primary {
+      background: #09090b;
+      color: #ffffff;
+      border-color: #09090b;
+    }
+    .btn-primary:hover {
+      background: #27272a;
+    }
+    .btn-primary:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+    .btn-secondary {
+      background: #ffffff;
+      color: #18181b;
+      border-color: #e4e4e7;
+    }
+    .btn-secondary:hover {
+      background: #f4f4f5;
+    }
+  </style>
+</head>
+<body>
+  <!-- Header with Brand and Profile Quick Trigger -->
+  <div class="cr-header">
+    <div class="cr-brand">
+      <span class="cr-brand-logo">⬡</span>
+      <span class="cr-brand-title">CareerRadar</span>
+      <span class="cr-badge-live">● Live</span>
+    </div>
+    <!-- Profile Chip in Header: Click to Edit / Expand -->
+    <button id="header-profile-chip" class="cr-btn-ghost" style="font-size:11px; padding:3px 8px; display:flex; align-items:center; gap:5px;" title="Click to view or edit your resume profile">
+      <span id="header-profile-text">👨‍💻 1.5 yrs · IIT Mandi</span>
+      <span style="font-size:10px; opacity:0.6;">✏️</span>
+    </button>
+  </div>
+
+  <!-- Active Job Detected Bar (Ultra-compact) -->
+  <div class="cr-card cr-card-compact" style="margin-bottom:10px;">
+    <div class="cr-job-active-bar">
+      <div style="flex:1; min-width:0;">
+        <div id="active-tab-title" class="cr-job-title" style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Detecting active job page...</div>
+        <div id="active-tab-url" class="cr-job-meta" style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Reading browser context...</div>
+      </div>
+      <button id="btn-quick-refresh" class="cr-btn-ghost" title="Re-scan active job" style="font-size:11px; padding:3px 8px; margin-left:6px; flex-shrink:0;">
+        ↻ Scan
+      </button>
+    </div>
+  </div>
+
+  <!-- Candidate Profile Editor Card (Hidden once calibrated — Zero Scrolling Required) -->
+  <div id="profile-container-card" class="cr-card cr-card-compact" style="display:none; margin-bottom:12px; border:1px solid #d4d4d8; background:#ffffff;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; padding-bottom:6px; border-bottom:1px solid #f4f4f5;">
+      <div style="display:flex; align-items:center; gap:6px;">
+        <span style="font-size:14px;">👨‍💻</span>
+        <strong id="display-profile-name" style="font-size:12px; color:#09090b;">Candidate Profile</strong>
+      </div>
+      <button id="btn-hide-profile-card" class="cr-btn-ghost" style="font-size:11px; padding:2px 6px;" title="Hide profile to see verdict at the top">
+        ✕ Hide Profile
+      </button>
+    </div>
+
+    <!-- Single Resume Upload Zone -->
+    <div style="margin-bottom:8px;">
+      <label for="resume-file-input" class="btn btn-secondary" style="margin:0; font-size:11px; padding:8px 10px; cursor:pointer; width:100%; border:1px dashed #a1a1aa; background:#fafafa;">
+        📁 Upload Resume (PDF / TXT)
+      </label>
+      <input type="file" id="resume-file-input" accept=".pdf,.txt,.md" style="display:none;" />
+    </div>
+
+    <!-- Optional paste text fallback -->
+    <details style="font-size:11px; color:#71717a; margin-bottom:8px;">
+      <summary style="cursor:pointer; font-weight:500;">Or edit / paste raw resume text</summary>
+      <textarea id="custom-resume-input" rows="3" placeholder="Paste resume text here..." style="width:100%; margin-top:4px; font-size:11px; font-family:ui-monospace, monospace; background:#ffffff; border:1px solid #d4d4d8; border-radius:6px; color:#09090b; padding:6px; resize:vertical; outline:none;"></textarea>
+    </details>
+
+    <!-- Extracted Profile Intelligence -->
+    <div id="parsed-metadata-panel" style="display:none; background:#f4f4f5; border:1px solid #e4e4e7; border-radius:6px; padding:8px; margin-bottom:8px;">
+      <div style="font-size:10px; text-transform:uppercase; font-family:ui-monospace, monospace; color:#71717a; font-weight:700; margin-bottom:4px;">
+        ⚡ Extracted Profile Intelligence
+      </div>
+      <div id="meta-education" style="font-size:11px; color:#18181b; margin-bottom:3px;"></div>
+      <div id="meta-experience" style="font-size:11px; color:#18181b; margin-bottom:3px;"></div>
+      <div id="meta-systems" style="font-size:11px; color:#3f3f46; margin-bottom:3px;"></div>
+      <div id="meta-achievements" style="font-size:11px; color:#059669; font-weight:600; margin-bottom:6px;"></div>
+
+      <div style="padding-top:6px; border-top:1px solid #e4e4e7; display:flex; justify-content:space-between; align-items:center; gap:8px;">
+        <div style="display:flex; align-items:center; gap:4px;">
+          <label style="font-size:11px; color:#52525b;">Exp:</label>
+          <input type="number" id="override-years" step="0.5" min="0" max="20" style="width:50px; padding:2px 4px; font-size:11px; border:1px solid #d4d4d8; border-radius:4px; font-family:ui-monospace, monospace;" />
+          <span style="font-size:10px; color:#71717a;">yrs</span>
+        </div>
+        <div style="display:flex; align-items:center; gap:4px;">
+          <label style="font-size:11px; color:#52525b;">Tier:</label>
+          <select id="override-seniority" style="padding:2px 4px; font-size:11px; border:1px solid #d4d4d8; border-radius:4px; background:#fff;">
+            <option value="Junior">Junior (Mentored)</option>
+            <option value="Mid-Level">Mid-Level (Autonomous)</option>
+            <option value="Senior">Senior (Staff/Lead)</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div style="display:flex; gap:6px;">
+      <button id="btn-save-resume" class="btn btn-primary" style="flex:1; padding:7px 10px; font-size:11px;">
+        Save & Sync Profile
+      </button>
+      <button id="btn-done-hide-profile" class="btn btn-secondary" style="width:auto; padding:7px 10px; font-size:11px;">
+        Done & Hide ▴
+      </button>
+    </div>
+    <div id="resume-saved-status" style="font-size:11px; color:#16a34a; font-weight:600; margin-top:4px; display:none;">✓ Profile saved & collapsed!</div>
+  </div>
+
+  <!-- Error Alert Container -->
+  <div id="error-box" class="cr-card" style="display:none; background:#fef2f2; border-color:#fecaca; color:#991b1b; padding:10px 12px; margin-bottom:10px;">
+    <div style="font-weight:600; font-size:12px; margin-bottom:2px;">Notice</div>
+    <div id="error-message" style="font-size:11px; line-height:1.4;"></div>
+  </div>
+
+  <!-- Loading Skeleton State -->
+  <div id="loading-skeleton-container" class="cr-card" style="display:none; padding:14px; margin-bottom:10px;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; padding-bottom:8px; border-bottom:1px solid #f4f4f5;">
+      <div style="display:flex; align-items:center; gap:8px;">
+        <span class="careerradar-spin" style="font-size:14px; color:#09090b;">⬡</span>
+        <strong id="skeleton-status-title" style="font-size:11px; font-family:ui-monospace, monospace; text-transform:uppercase; letter-spacing:0.04em; color:#09090b;">
+          Arbitrating Fit...
+        </strong>
+      </div>
+      <span class="cr-badge-live">Jev System One</span>
+    </div>
+
+    <!-- Pulsing Shimmer Bars -->
+    <div style="background:#f4f4f5; border-radius:8px; padding:10px; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center;">
+      <div class="careerradar-skeleton-shimmer" style="width:50%; height:16px;"></div>
+      <div class="careerradar-skeleton-shimmer" style="width:25%; height:16px;"></div>
+    </div>
+
+    <div class="cr-metrics-grid" style="margin-bottom:12px;">
+      <div class="cr-metric-tile">
+        <div class="careerradar-skeleton-shimmer" style="width:60%; height:10px; margin:0 auto 6px;"></div>
+        <div class="careerradar-skeleton-shimmer" style="width:80%; height:16px; margin:0 auto;"></div>
+      </div>
+      <div class="cr-metric-tile">
+        <div class="careerradar-skeleton-shimmer" style="width:60%; height:10px; margin:0 auto 6px;"></div>
+        <div class="careerradar-skeleton-shimmer" style="width:80%; height:16px; margin:0 auto;"></div>
+      </div>
+      <div class="cr-metric-tile">
+        <div class="careerradar-skeleton-shimmer" style="width:60%; height:10px; margin:0 auto 6px;"></div>
+        <div class="careerradar-skeleton-shimmer" style="width:80%; height:16px; margin:0 auto;"></div>
+      </div>
+    </div>
+
+    <div class="careerradar-skeleton-shimmer" style="width:90%; height:12px; margin-bottom:6px;"></div>
+    <div class="careerradar-skeleton-shimmer" style="width:75%; height:12px;"></div>
+  </div>
+
+  <!-- Real-Time Verdict Card (Renders immediately at top fold) -->
+  <div id="verdict-container" class="cr-card" style="display:none;">
+    <!-- Hero Recommendation Banner -->
+    <div id="verdict-hero-badge" class="cr-verdict-hero cr-verdict-hero-reach-apply">
+      <div style="display:flex; align-items:center;">
+        <span id="verdict-dot" class="cr-verdict-dot cr-verdict-dot-reach-apply"></span>
+        <span id="verdict-pill">REACH APPLY · COMPETITIVE CONTENDER</span>
+      </div>
+      <div id="jev-latency" class="cr-verdict-telemetry">⚡ 320ms</div>
+    </div>
+
+    <!-- Executive Summary Box -->
+    <div id="summary-box" class="cr-summary-box">
+      <div id="subagent-summary-text">Analyzing role requirements and candidate experience...</div>
+    </div>
+
+    <!-- 3-Tile Metrics Dashboard -->
+    <div class="cr-metrics-grid">
+      <div class="cr-metric-tile">
+        <div class="cr-metric-label">Architecture Fit</div>
+        <div id="viability-val" class="cr-metric-val">--</div>
+        <div class="cr-metric-track">
+          <div id="viability-bar" class="cr-metric-fill" style="width:0%; background:#09090b;"></div>
+        </div>
+      </div>
+      <div class="cr-metric-tile">
+        <div class="cr-metric-label">Systems Synergy</div>
+        <div id="suitability-val" class="cr-metric-val">--</div>
+        <div class="cr-metric-track">
+          <div id="suitability-bar" class="cr-metric-fill" style="width:0%; background:#10b981;"></div>
+        </div>
+      </div>
+      <div class="cr-metric-tile">
+        <div class="cr-metric-label">Screen Odds</div>
+        <div id="interview-odds-val" class="cr-metric-val">--</div>
+        <div class="cr-metric-track">
+          <div id="interview-odds-bar" class="cr-metric-fill" style="width:0%; background:#10b981;"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Experience Calibration Comparison Strip -->
+    <div class="cr-calib-strip">
+      <div class="cr-calib-side">
+        <span class="cr-calib-lbl">Role Requirement</span>
+        <strong id="calib-role-req" class="cr-calib-val">--</strong>
+      </div>
+      <div class="cr-calib-divider">vs</div>
+      <div class="cr-calib-side" style="text-align:right;">
+        <span class="cr-calib-lbl">Your Profile</span>
+        <strong id="calib-cand-exp" class="cr-calib-val">--</strong>
+      </div>
+    </div>
+    <div id="calibration-note" class="cr-calib-note" style="display:none;"></div>
+
+    <!-- Matched Deliverables Chips -->
+    <div style="margin-top:10px;">
+      <div style="font-size:11px; font-weight:600; color:#15803d; margin-bottom:4px;">
+        ✓ Matched Systems Deliverables:
+      </div>
+      <div id="matched-chips" class="cr-chips-container">
+        <!-- Injected chip badges -->
+      </div>
+    </div>
+
+    <!-- Domain Nuance / Focus Chips -->
+    <div id="domain-nuance-section" style="margin-top:10px; display:none;">
+      <div style="font-size:11px; font-weight:600; color:#b45309; margin-bottom:4px;">
+        ⚠ Domain Focus & Nuance:
+      </div>
+      <div id="nuance-chips" class="cr-chips-container">
+        <!-- Injected chip badges -->
+      </div>
+    </div>
+  </div>
+
+  <script src="sidepanel.js"></script>
+</body>
+</html>
