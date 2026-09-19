@@ -95,14 +95,17 @@ function updateProfileBarUI(metadata, candidate) {
   const nameLine = document.getElementById('profile-name-line');
   const subLine = document.getElementById('profile-sub-line');
 
-  const fullName = candidate?.name && candidate.name !== 'Candidate' && candidate.name !== 'Custom Profile'
-    ? candidate.name
-    : 'Gaurav';
+  let fullName = candidate?.name || 'Gaurav';
+  if (!fullName || /indian|institute|college|university|custom profile|candidate/i.test(fullName)) {
+    fullName = 'Gaurav';
+  }
 
   const firstName = fullName.split(' ')[0];
   const initials = fullName.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() || 'GA';
   const expYears = metadata?.calculatedYears ?? candidate?.experienceYears ?? 1.5;
-  const targetRole = candidate?.targetRole ? candidate.targetRole.split(' ')[0] : 'Backend / AI';
+  const targetRole = candidate?.targetRole && !/engineer|custom/i.test(candidate.targetRole)
+    ? candidate.targetRole.split(' ')[0]
+    : 'Backend & Systems';
   const college = metadata?.college ? metadata.college.replace('Indian Institute of Technology, ', 'IIT ') : 'IIT Mandi';
 
   if (avatar) avatar.childNodes[0].nodeValue = initials + ' ';
@@ -162,10 +165,14 @@ function scrapeJobDetailsFromPage() {
     description = descEl?.innerText?.trim() || '';
   }
   // 2. Google Careers
-  else if (host.includes('google.com') && (url.includes('/careers') || url.includes('/jobs'))) {
+  else if (host.includes('google.com') && (url.includes('/careers') || url.includes('/jobs') || url.includes('google.com/about/careers'))) {
     title = document.querySelector('h1, h2.title, [role="heading"][aria-level="1"], .gc-job-detail__title, .headline-4')?.innerText?.trim() || '';
     company = 'Google';
-    location = document.querySelector('[aria-label*="Location"], .gc-job-detail__meta, .gc-job-location, [aria-label*="location"]')?.innerText?.trim() || 'Mountain View, CA';
+    const locEl = document.querySelector('[aria-label*="Location"], .gc-job-detail__meta, .gc-job-location, [aria-label*="location"]');
+    if (locEl) {
+      location = locEl.innerText.replace(/corporate_fare|place|pin_drop/gi, '').replace(/\s+/g, ' ').trim();
+    }
+    if (!location) location = 'Hyderabad / Global';
     const descEl = document.querySelector('[aria-label="Job details"], .gc-job-detail, main, article');
     description = descEl?.innerText?.trim() || '';
   }
@@ -554,12 +561,11 @@ async function init() {
   const btnViewReasoning = document.getElementById('btn-view-reasoning');
   const btnCloseReasoning = document.getElementById('btn-close-reasoning');
   const btnCopyPitch = document.getElementById('btn-copy-pitch');
-  const btnApplyAnyway = document.getElementById('btn-apply-anyway');
-  const btnOpenJob = document.getElementById('btn-open-job');
 
-  function toggleReasoningDrawer(open = true) {
+  function toggleReasoningDrawer(open = null) {
     if (!reasoningDrawer || !reasoningBackdrop) return;
-    if (open) {
+    const shouldOpen = open !== null ? open : !reasoningDrawer.classList.contains('open');
+    if (shouldOpen) {
       reasoningDrawer.classList.add('open');
       reasoningBackdrop.classList.add('open');
     } else {
@@ -568,7 +574,7 @@ async function init() {
     }
   }
 
-  btnViewReasoning?.addEventListener('click', () => toggleReasoningDrawer(true));
+  btnViewReasoning?.addEventListener('click', () => toggleReasoningDrawer());
   btnCloseReasoning?.addEventListener('click', () => toggleReasoningDrawer(false));
   reasoningBackdrop?.addEventListener('click', () => toggleReasoningDrawer(false));
 
@@ -585,29 +591,11 @@ async function init() {
 
   btnCopyPitch?.addEventListener('click', copyStrategicPitch);
 
-  btnApplyAnyway?.addEventListener('click', () => {
-    copyStrategicPitch();
-    // Also focus or open the active job tab
-    getActiveTab().then(tab => {
-      if (tab?.id) chrome.tabs.update(tab.id, { active: true });
-    });
-  });
-
-  btnOpenJob?.addEventListener('click', async () => {
-    const tab = await getActiveTab();
-    if (tab?.url) {
-      window.open(tab.url, '_blank');
-    }
-  });
-
-  // Keyboard Shortcuts (⌘R / Ctrl+R to rescan, ⌘↵ / Ctrl+Enter to apply, Esc to close drawer)
+  // Keyboard Shortcuts (⌘R / Ctrl+R to rescan, Esc to close drawer)
   document.addEventListener('keydown', (e) => {
     if ((e.metaKey || e.ctrlKey) && e.key === 'r') {
       e.preventDefault();
       evaluateCurrentTab();
-    } else if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
-      e.preventDefault();
-      btnApplyAnyway?.click();
     } else if (e.key === 'Escape') {
       toggleReasoningDrawer(false);
       toggleProfileCard(false);

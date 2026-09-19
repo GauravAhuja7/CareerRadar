@@ -244,6 +244,32 @@ Experience:
 - Associate Frontend Developer at Digital Craft Agency (2024 - Present): Developed interactive client marketing websites and dashboards. Implemented reusable component libraries and accessible UI forms.
 Education: Full-Stack Web Development Certificate + B.A. in Psychology.
     `.trim()
+  },
+  gaurav: {
+    id: 'gaurav',
+    name: 'Gaurav Ahuja',
+    targetRole: 'Backend & Systems Engineer',
+    experienceYears: 1.5,
+    seniorityTier: 'Junior',
+    engineeringArchetype: 'High-Velocity Systems Engineer with verified distributed event pipelines & high-concurrency architecture',
+    demonstratedScaleAndScope: 'Kafka-based asynchronous event pipelines (3x throughput boost); Stateless AWS cloud migration (50% horizontal scalability gain); High-concurrency services sustaining 1000+ peak WebSockets; Cloud-native deployments on AWS with Docker, Kubernetes, and Terraform; Observability stack (Prometheus, Grafana, Loki) cutting incident MTTR 30%; Enterprise ATS API integrations (Greenhouse, Workday, Ashby) with 99.9% sync reliability.',
+    autonomyTrackRecord: 'Operates with high autonomy on complex distributed systems, achieving 99.9% sync reliability and 40% P95 latency reduction.',
+    primaryTechnicalDomains: ['Distributed Backend & Kafka Pipelines', 'Cloud Infrastructure & DevOps (AWS, K8s, IaC)', 'Observability & Telemetry (Prometheus, Grafana)', 'High-Concurrency APIs & Real-Time WebSockets', 'Systems Automation (Python/Go)'],
+    fullResumeText: `
+Gaurav Ahuja — Backend & Systems Engineer (1.5 years experience)
+Education: B.Tech in Computer Science and Engineering, Indian Institute of Technology Mandi (IIT Mandi).
+Summary: High-velocity backend and systems engineer with production experience in distributed event pipelines, Linux systems, observability, AWS cloud infrastructure, and systems automation.
+Technical Skills:
+- Languages: Python, Go, Java, TypeScript, JavaScript, SQL, Bash
+- Infrastructure & Cloud: AWS (S3, RDS, EC2), Docker, Kubernetes, Terraform, Linux OS Internals
+- Systems & Architecture: Kafka, Event-Driven Architecture, Microservices, WebSockets (1000+ concurrent), Redis
+- Observability: Prometheus, Grafana, Loki (instrumentation, telemetry, MTTR reduction)
+- Identity & Security: OAuth, Webhooks, Idempotency, REST API design
+Experience:
+- Software Engineer Intern at Joveo: Built Kafka-based asynchronous event pipelines delivering 3x throughput boost. Integrated enterprise ATS APIs (Greenhouse, Workday, Ashby) with 99.9% sync reliability.
+- Software Developer Intern at Equal: Architected stateless cloud migration on AWS cutting latency. Deployed Prometheus/Grafana observability stack reducing incident MTTR by 30%.
+Achievements: AiHack 1st Place (CatBoost ML optimization), LeetCode 1900+, Codeforces Expert.
+    `.trim()
   }
 };
 
@@ -253,52 +279,66 @@ export function extractJobExperienceDemands(fullText: string, title: string) {
   const isSeniorRole = /\b(senior|sr\.?|staff|principal|lead|director|manager|architect)\b/i.test(title);
   const isJuniorRole = /\b(junior|jr\.?|entry[\s\-]?level|new[\s\-]?grad(?:uate)?|fresher|graduate|associate|trainee|intern)\b/i.test(title);
 
-  // Match ONLY explicit experience statements in the job description
-  const rangeMatch = fullText.match(/\b([0-9]|1[0-9])\s*(?:–|-|—|to)\s*([0-9]|1[0-9])\+?\s*years?(?:\s+of)?(?:\s+(?:relevant|industry|work|hands[\s\-]?on|software)?\s*experience)?/i);
-  const plusMatch = fullText.match(/\b([0-9]|1[0-9])\+\s*years?(?:\s+of)?(?:\s+(?:relevant|industry|work|hands[\s\-]?on|software)?\s*experience)?/i);
-  const singleYearMatch = fullText.match(/\b([1-9])\s*years?(?:\s+of)?(?:\s+(?:relevant|industry|work|hands[\s\-]?on|software)?\s*experience)/i);
+  // Isolate qualifications block if present to avoid matching cookie/legal text
+  const qualMatch = fullText.match(/(?:minimum qualifications|basic qualifications|qualifications|requirements|what you(?:'ll)? need)[\s\S]{0,1400}/i);
+  const targetText = qualMatch ? qualMatch[0] : fullText;
+
+  // 1. Explicit ranges: "3-5 years", "2 to 4 years", "1–3 yrs"
+  const rangeMatch = targetText.match(/\b([0-9]|1[0-9])\s*(?:–|-|—|to)\s*([0-9]|1[0-9])\+?\s*years?/i) ||
+                    fullText.match(/\b([0-9]|1[0-9])\s*(?:–|-|—|to)\s*([0-9]|1[0-9])\+?\s*years?/i);
 
   if (rangeMatch) {
-    const rawStr = rangeMatch[0].trim();
-    const numbers = rawStr.match(/\b\d+\b/g)?.map(Number) || [1, 3];
-    const min = numbers[0] ?? 1;
+    const numbers = rangeMatch[0].match(/\b\d+\b/g)?.map(Number) || [2, 4];
+    const min = numbers[0] ?? 2;
     const max = numbers[1] ?? min + 2;
     return {
       requiredExpStr: `${min}–${max} years`,
       minYears: min,
       maxYears: max,
       isJunior: isJuniorRole || min <= 1,
-      isSenior: isSeniorRole,
+      isSenior: isSeniorRole || min >= 5,
       hasExplicitYears: true
     };
   }
 
-  if (plusMatch) {
-    const rawStr = plusMatch[0].trim();
-    const num = Number(rawStr.match(/\b\d+\b/)?.[0] || 2);
-    return {
-      requiredExpStr: `${num}+ years`,
-      minYears: num,
-      maxYears: num + 3,
-      isJunior: isJuniorRole && num <= 2,
-      isSenior: isSeniorRole || num >= 5,
-      hasExplicitYears: true
-    };
+  // 2. Specific year requirements: "2 years of experience", "2+ years", "3 years experience with"
+  const expPattern = /\b([1-9]|1[0-9])\s*(\+)?\s*years?(?:\s+of)?(?:\s+(?:relevant|industry|work|hands[\s\-]?on|software|technical)?\s*experience)?/gi;
+  const matches = [...targetText.matchAll(expPattern)];
+
+  if (matches.length > 0) {
+    const numbers = matches.map(m => Number(m[1])).filter(n => !isNaN(n) && n > 0 && n <= 15);
+    if (numbers.length > 0) {
+      const primaryYear = Math.max(...numbers);
+      const hasPlus = matches.some(m => m[2] === '+');
+      return {
+        requiredExpStr: `${primaryYear}${hasPlus ? '+' : ''} years`,
+        minYears: primaryYear,
+        maxYears: primaryYear + 2,
+        isJunior: isJuniorRole && primaryYear <= 2,
+        isSenior: isSeniorRole || primaryYear >= 5,
+        hasExplicitYears: true
+      };
+    }
   }
 
-  if (singleYearMatch) {
-    const num = Number(singleYearMatch[1]);
-    return {
-      requiredExpStr: `${num}+ years`,
-      minYears: num,
-      maxYears: num + 2,
-      isJunior: isJuniorRole && num <= 2,
-      isSenior: isSeniorRole || num >= 5,
-      hasExplicitYears: true
-    };
+  // Fallback to fullText if targetText had no matches
+  const fallbackMatches = [...fullText.matchAll(expPattern)];
+  if (fallbackMatches.length > 0) {
+    const numbers = fallbackMatches.map(m => Number(m[1])).filter(n => !isNaN(n) && n > 0 && n <= 15);
+    if (numbers.length > 0) {
+      const primaryYear = Math.max(...numbers);
+      return {
+        requiredExpStr: `${primaryYear} years`,
+        minYears: primaryYear,
+        maxYears: primaryYear + 2,
+        isJunior: isJuniorRole && primaryYear <= 2,
+        isSenior: isSeniorRole || primaryYear >= 5,
+        hasExplicitYears: true
+      };
+    }
   }
 
-  // ⚠️ CRITICAL: When NO years of experience are mentioned, NEVER fabricate a number!
+  // When NO years of experience are mentioned
   if (isSeniorRole) {
     return {
       requiredExpStr: 'Not specified (Senior IC Scope)',
@@ -329,6 +369,145 @@ export function extractJobExperienceDemands(fullText: string, title: string) {
     isSenior: false,
     hasExplicitYears: false
   };
+}
+
+// ── Dynamic Engineering Domain Catalog ──
+export interface DomainCapability {
+  id: string;
+  name: string;
+  jobKeywords: RegExp;
+  candidateKeywords: RegExp;
+  evidenceLabel: string;
+  gapLabel: string;
+}
+
+export const DOMAIN_CATALOG: DomainCapability[] = [
+  {
+    id: 'systems_automation',
+    name: 'Systems Automation (Python/Go)',
+    jobKeywords: /\b(systems automation|automation|python|golang|\bgo\b|scripting|bash|toil|toil reduction|tooling)\b/i,
+    candidateKeywords: /\b(python|scripting|automation|catboost|bash|fastapi|django)\b/i,
+    evidenceLabel: 'Systems Automation (Python/Go)',
+    gapLabel: 'Systems automation with Python or Go'
+  },
+  {
+    id: 'linux_systems',
+    name: 'Linux Systems & OS Internals',
+    jobKeywords: /\b(linux|unix|operating system|kernel|posix|systems administration|systems engineering|low[\s\-]?level)\b/i,
+    candidateKeywords: /\b(linux|ubuntu|kernel|bash|docker|c\+\+|systems|posix)\b/i,
+    evidenceLabel: 'Linux OS Internals & Systems Engineering',
+    gapLabel: 'Linux OS internals & administration'
+  },
+  {
+    id: 'observability',
+    name: 'Observability & Telemetry',
+    jobKeywords: /\b(observability|telemetry|monitoring|metrics|instrumentation|prometheus|grafana|loki|datadog|opentelemetry|tracing|sli|slo)\b/i,
+    candidateKeywords: /\b(prometheus|grafana|loki|observability|telemetry|monitoring|datadog)\b/i,
+    evidenceLabel: 'Observability & Telemetry (Prometheus/Grafana)',
+    gapLabel: 'Observability, metrics & instrumentation'
+  },
+  {
+    id: 'infrastructure_scale',
+    name: 'Infrastructure & Cloud Scale',
+    jobKeywords: /\b(infrastructure|virtual compute|cloud|aws|gcp|azure|terraform|kubernetes|k8s|deployment|orchestration)\b/i,
+    candidateKeywords: /\b(aws|cloud|kubernetes|docker|terraform|s3|rds|ec2)\b/i,
+    evidenceLabel: 'Cloud Infrastructure & Deployment (AWS/K8s)',
+    gapLabel: 'Technical infrastructure & deployment scale'
+  },
+  {
+    id: 'iam_security',
+    name: 'Identity & Access (IAM) / Security',
+    jobKeywords: /\b(iam|identity|access management|oauth|oidc|sso|security|authentication|authorization|access control)\b/i,
+    candidateKeywords: /\b(oauth|authentication|authorization|webhook|security|idempotency)\b/i,
+    evidenceLabel: 'Identity & Access Management (IAM) / OAuth',
+    gapLabel: 'Identity and Access Management (IAM)'
+  },
+  {
+    id: 'distributed_systems',
+    name: 'Distributed Systems & Scale',
+    jobKeywords: /\b(distributed|concurrency|websocket|throughput|rpc|grpc|consensus|scale|high scale)\b/i,
+    candidateKeywords: /\b(distributed|concurrency|websocket|throughput|microservice|kafka|1000\+)\b/i,
+    evidenceLabel: 'Distributed Systems & High Concurrency',
+    gapLabel: 'Distributed systems at scale'
+  },
+  {
+    id: 'event_driven',
+    name: 'Kafka & Event-Driven Systems',
+    jobKeywords: /\b(kafka|event[\s\-]?driven|message queue|pub[\s\-]?sub|rabbitmq|sqs|kinesis)\b/i,
+    candidateKeywords: /\b(kafka|event[\s\-]?driven|message queue|pubsub|redis)\b/i,
+    evidenceLabel: 'Kafka & Event-Driven Pipelines',
+    gapLabel: 'Kafka / event-driven message architectures'
+  },
+  {
+    id: 'backend_apis',
+    name: 'Backend API Architecture',
+    jobKeywords: /\b(backend|api|rest|microservice|java|spring|node|express|fastapi|graphql)\b/i,
+    candidateKeywords: /\b(backend|api|rest|microservice|node|express|spring|postgres|sql)\b/i,
+    evidenceLabel: 'Backend API Architecture & Contracts',
+    gapLabel: 'Enterprise backend API services'
+  },
+  {
+    id: 'ai_ml',
+    name: 'AI & Machine Learning',
+    jobKeywords: /\b(ai\b|machine learning|ml\b|llm|deep learning|nlp|computer vision|pytorch|tensorflow|model)\b/i,
+    candidateKeywords: /\b(catboost|ai|ml|machine learning|python|openai|model|auc)\b/i,
+    evidenceLabel: 'AI/ML Engineering & Model Optimization',
+    gapLabel: 'Production AI/ML models'
+  },
+  {
+    id: 'networking_debugging',
+    name: 'Networking & Debugging',
+    jobKeywords: /\b(networking|debugging|troubleshooting|on[\s\-]?call|incident|tcp|dns|http|latency|post[\s\-]?mortem)\b/i,
+    candidateKeywords: /\b(networking|troubleshooting|debugging|incident|mttr|latency|websocket|http)\b/i,
+    evidenceLabel: 'Networking, Debugging & Incident Triage',
+    gapLabel: 'Low-level networking & troubleshooting'
+  }
+];
+
+export function analyzeJobDomains(fullJobText: string, resumeText: string, techScore: number) {
+  const matchedDomains = DOMAIN_CATALOG.filter(d => d.jobKeywords.test(fullJobText));
+  const selectedDomains = matchedDomains.slice(0, 4);
+
+  // If fewer than 4 matched, fill with complementary high-signal domains
+  if (selectedDomains.length < 4) {
+    for (const d of DOMAIN_CATALOG) {
+      if (!selectedDomains.some(s => s.id === d.id)) {
+        selectedDomains.push(d);
+        if (selectedDomains.length >= 4) break;
+      }
+    }
+  }
+
+  const technicalAlignment = selectedDomains.map((d, index) => {
+    const candidateHasSkill = d.candidateKeywords.test(resumeText);
+    const basePct = candidateHasSkill ? 86 - index * 3 : 62 - index * 5;
+    const finalPct = Math.min(95, Math.max(50, Math.round(basePct + (techScore - 2.5) * 5)));
+    return {
+      skill: d.name,
+      percentage: finalPct
+    };
+  });
+
+  const evidence: Array<{ text: string; tag: string; status: 'strong' | 'good' | 'stretch' | 'mismatch'; isStretch?: boolean }> = [];
+  for (const d of selectedDomains) {
+    const candidateHasSkill = d.candidateKeywords.test(resumeText);
+    if (candidateHasSkill) {
+      evidence.push({
+        text: d.evidenceLabel,
+        tag: 'Strong match',
+        status: 'strong'
+      });
+    } else {
+      evidence.push({
+        text: d.gapLabel,
+        tag: 'Learning curve',
+        status: 'stretch',
+        isStretch: true
+      });
+    }
+  }
+
+  return { technicalAlignment, evidence };
 }
 
 // ── Holistic Context Subagent Processor ──
@@ -433,13 +612,16 @@ app.post('/api/scan-job', async (req, res) => {
     return res.status(400).json({ error: 'Job listing object is required' });
   }
 
-  const fallbackCandidate = (resume && PERSONAS[resume]) || PERSONAS['alex'];
+  const fallbackCandidate = (resume && PERSONAS[resume]) || PERSONAS['gaurav'] || PERSONAS['alex'];
+  const rawName = customResume?.name || fallbackCandidate.name || 'Gaurav';
+  const cleanName = /indian|institute|college|university|custom profile|candidate/i.test(rawName) ? 'Gaurav' : rawName;
+
   const candidate: CandidateResume = {
     ...fallbackCandidate,
     ...(customResume || {}),
-    name: customResume?.name || fallbackCandidate.name || 'Candidate',
+    name: cleanName,
     experienceYears: customResume?.experienceYears ?? fallbackCandidate.experienceYears ?? 1.5,
-    seniorityTier: customResume?.seniorityTier || fallbackCandidate.seniorityTier || 'Mid-Level',
+    seniorityTier: customResume?.seniorityTier || fallbackCandidate.seniorityTier || 'Junior',
     primaryTechnicalDomains: (customResume?.primaryTechnicalDomains && customResume.primaryTechnicalDomains.length)
       ? customResume.primaryTechnicalDomains
       : fallbackCandidate.primaryTechnicalDomains,
@@ -546,20 +728,10 @@ app.post('/api/scan-job', async (req, res) => {
       ((techScore / 4) * 0.5 + (expScore / 4) * 0.25 + interviewOdds * 0.25) * 100
     );
 
-    // Build Structured Evidence Rows ("Why this verdict")
-    const evidence: Array<{ text: string; tag: string; status: 'strong' | 'good' | 'stretch' | 'mismatch'; isStretch?: boolean }> = [];
-    if (/kafka|event|pipeline/i.test(fullJobText) || /kafka/i.test(resumeText)) {
-      evidence.push({ text: 'Kafka / Event-driven systems', tag: 'Strong match', status: 'strong' });
-    }
-    if (/aws|cloud|s3|rds/i.test(fullJobText) || /aws/i.test(resumeText)) {
-      evidence.push({ text: 'AWS cloud architecture & services', tag: 'Strong match', status: 'strong' });
-    }
-    if (/backend|java|spring|node|api/i.test(fullJobText) || /backend|node|spring/i.test(resumeText)) {
-      evidence.push({ text: 'Backend engineering (Java, Spring Boot, etc.)', tag: 'Good match', status: 'good' });
-    }
-    if (/ai|ml|python|catboost|llm/i.test(fullJobText) || /ai|ml|python/i.test(resumeText)) {
-      evidence.push({ text: 'AI/ML experience (relevant projects)', tag: 'Good match', status: 'good' });
-    }
+    // Build Structured Evidence Rows ("Why this verdict") & Dynamic Technical Alignment
+    const { technicalAlignment, evidence: domainEvidence } = analyzeJobDomains(fullJobText, resumeText, techScore);
+
+    const evidence = [...domainEvidence];
 
     // Add experience gap / stretch item
     const isReach = verdictChoice === 'reach_apply';
@@ -585,14 +757,6 @@ app.post('/api/scan-job', async (req, res) => {
         status: 'strong'
       });
     }
-
-    // Build Technical Alignment Percentages
-    const technicalAlignment = [
-      { skill: 'Kafka / Event Systems', percentage: Math.min(95, Math.round(80 + (techScore - 2.5) * 6)) },
-      { skill: 'AWS / Cloud', percentage: Math.min(95, Math.round(75 + (techScore - 2.5) * 5)) },
-      { skill: 'Backend Engineering', percentage: Math.min(92, Math.round(70 + (techScore - 2.5) * 5)) },
-      { skill: 'AI / ML', percentage: Math.min(90, Math.round(65 + (techScore - 2.5) * 5)) }
-    ];
 
     // Experience Comparison Spec
     const reqDisplay = expInfo.hasExplicitYears
@@ -717,9 +881,25 @@ export function parseResumeIntelligently(text: string, overrides: any = {}) {
   const seniorityTier: CandidateResume['seniorityTier'] =
     overrides.seniorityTier || (years >= 4 ? 'Senior' : (systemsHighlights.length >= 3 ? 'Mid-Level' : 'Junior'));
 
+  // 7. Candidate Name extraction
+  let parsedName = overrides.name || '';
+  if (!parsedName) {
+    const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+    for (let i = 0; i < Math.min(4, lines.length); i++) {
+      const line = lines[i];
+      if (/^[A-Za-z\s\.\-]{2,40}$/.test(line) && !/(resume|curriculum|vitae|education|experience|summary|skills|projects|contact|email|phone|objective|b\.?tech)/i.test(line)) {
+        parsedName = line;
+        break;
+      }
+    }
+  }
+  if (!parsedName || /indian|institute|college|university|custom profile|candidate/i.test(parsedName)) {
+    parsedName = 'Gaurav Ahuja';
+  }
+
   const candidate: CandidateResume = {
     id: 'custom',
-    name: overrides.name || (college ? `${college} Engineer` : 'Custom Profile'),
+    name: parsedName,
     targetRole: overrides.targetRole || `${seniorityTier} Backend & Systems Engineer`,
     experienceYears: years,
     seniorityTier,

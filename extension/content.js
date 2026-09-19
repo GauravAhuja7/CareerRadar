@@ -180,10 +180,14 @@ function extractActiveJobDetails() {
     description = descEl?.innerText?.trim() || '';
   }
   // 2. Google Careers
-  else if (host.includes('google.com') && (url.includes('/careers') || url.includes('/jobs'))) {
+  else if (host.includes('google.com') && (url.includes('/careers') || url.includes('/jobs') || url.includes('google.com/about/careers'))) {
     title = document.querySelector('h1, h2.title, [role="heading"][aria-level="1"], .gc-job-detail__title, .headline-4')?.innerText?.trim() || '';
     company = 'Google';
-    location = document.querySelector('[aria-label*="Location"], .gc-job-detail__meta, .gc-job-location, [aria-label*="location"]')?.innerText?.trim() || 'Mountain View, CA';
+    const locEl = document.querySelector('[aria-label*="Location"], .gc-job-detail__meta, .gc-job-location, [aria-label*="location"]');
+    if (locEl) {
+      location = locEl.innerText.replace(/corporate_fare|place|pin_drop/gi, '').replace(/\s+/g, ' ').trim();
+    }
+    if (!location) location = 'Hyderabad / Global';
     const descEl = document.querySelector('[aria-label="Job details"], .gc-job-detail, main, article');
     description = descEl?.innerText?.trim() || '';
   }
