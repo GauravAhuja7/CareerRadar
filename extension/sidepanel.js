@@ -766,9 +766,14 @@ async function init() {
   // Check Storage on Boot
   try {
     const { activeJobEvaluation } = await chrome.storage.local.get(['activeJobEvaluation']);
+    const tab = await getActiveTab();
     if (activeJobEvaluation?.data && activeJobEvaluation?.scraped) {
       renderVerdict(activeJobEvaluation.data, activeJobEvaluation.scraped);
-    } else {
+    }
+    // Always refresh scan for current tab if user is currently on a job page
+    if (tab && tab.url && isJobUrl(tab.url)) {
+      setTimeout(() => evaluateCurrentTab(), 150);
+    } else if (!activeJobEvaluation?.data) {
       setTimeout(evaluateCurrentTab, 200);
     }
   } catch {

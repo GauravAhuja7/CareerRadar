@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "concurrently -k -n \"server,client\" -c \"magenta,cyan\" \"npm run server\" \"npm run client\"",
-    "server": "tsx server/index.ts",
+    "server": "tsx watch server/index.ts",
     "client": "vite",
     "build": "tsc -b && vite build",
     "lint": "oxlint",

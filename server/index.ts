@@ -199,44 +199,59 @@ export function extractJobExperienceDemands(fullText: string, title: string) {
   const isSeniorRole = /\b(senior|sr\.?|staff|principal|lead|director|manager|architect|head of|vp)\b/i.test(title);
   const isJuniorRole = /\b(junior|jr\.?|entry[\s\-]?level|new[\s\-]?grad(?:uate)?|fresher|graduate|associate|trainee|intern)\b/i.test(title);
 
-  // 1. Explicit ranges: "3-5 years", "2 to 4 years", "1–3 yrs", "3 - 5 yrs"
-  const rangePattern = /\b([0-9]|1[0-9])\s*(?:–|-|—|to)\s*([0-9]|1[0-9])\+?\s*(?:years?|yrs?)/gi;
-  const rangeMatches = [...fullText.matchAll(rangePattern)];
-  if (rangeMatches.length > 0) {
-    const numbers = rangeMatches[0][0].match(/\b\d+\b/g)?.map(Number) || [2, 4];
-    const min = numbers[0] ?? 2;
-    const max = numbers[1] ?? min + 2;
-    return {
-      requiredExpStr: `${min}–${max} yrs`,
-      minYears: min,
-      maxYears: max,
-      isJunior: isJuniorRole || min <= 1,
-      isSenior: isSeniorRole || min >= 5,
-      hasExplicitYears: true
-    };
-  }
+  // Clean full text of common non-job-experience noise
+  // (e.g. "4-year degree", "3-year bachelor", "in business for 20 years", "founded 10 years ago")
+  const cleanedText = fullText
+    .replace(/\b(?:in business for|founded|established|operating for|over)\s+\d+\+?\s+years\b/gi, '')
+    .replace(/\b\d+\s*(?:–|-|—|to)\s*\d+\s*(?:day|week|month|applicant|candidate|review)s?\b/gi, '')
+    .replace(/\b\d+[\s\-]year\s+(?:degree|bachelor|master|diploma|college|university)\b/gi, '');
 
-  // 2. Specific year requirements: "3+ years", "3 years of experience", "2+ yrs"
-  const expPattern = /\b([1-9]|1[0-9])\s*(\+)?\s*(?:years?|yrs?)(?:\s+of)?(?:\s+(?:relevant|industry|work|hands[\s\-]?on|professional|operational|engineering|backend|software)?\s*(?:experience|engineering|development|background))?/gi;
-  const matches = [...fullText.matchAll(expPattern)];
+  // Isolate high-confidence requirement sections if present
+  const qualSectionMatch = cleanedText.match(
+    /(?:key qualifications|basic qualifications|minimum qualifications|qualifications|requirements|what you(?:'ll)? need|what we(?:'re)? looking for|experience requirements|who you are|about the job)[\s\S]{0,3500}/i
+  );
+  const searchTexts = qualSectionMatch ? [qualSectionMatch[0], cleanedText] : [cleanedText];
 
-  if (matches.length > 0) {
-    const validMatches = matches.map(m => {
-      const num = Number(m[1]);
-      const hasPlus = m[2] === '+' || m[0].includes('+');
-      return { num, hasPlus };
-    }).filter(m => !isNaN(m.num) && m.num > 0 && m.num <= 15);
-
-    if (validMatches.length > 0) {
-      const primary = validMatches[0];
+  for (const text of searchTexts) {
+    // 1. Explicit ranges: "3-5 years", "2 to 4 years", "1–3 yrs", "3 - 5 yrs"
+    const rangePattern = /\b([0-9]|1[0-9])\s*(?:–|-|—|to)\s*([0-9]|1[0-9])\+?\s*(?:years?|yrs?)\b/gi;
+    const rangeMatches = [...text.matchAll(rangePattern)];
+    if (rangeMatches.length > 0) {
+      const numbers = rangeMatches[0][0].match(/\b\d+\b/g)?.map(Number) || [2, 4];
+      const min = numbers[0] ?? 2;
+      const max = numbers[1] ?? min + 2;
       return {
-        requiredExpStr: `${primary.num}${primary.hasPlus ? '+' : ''} yrs`,
-        minYears: primary.num,
-        maxYears: primary.num + 2,
-        isJunior: isJuniorRole && primary.num <= 2,
-        isSenior: isSeniorRole || primary.num >= 5,
+        requiredExpStr: `${min}–${max} yrs`,
+        minYears: min,
+        maxYears: max,
+        isJunior: isJuniorRole || min <= 1,
+        isSenior: isSeniorRole || min >= 5,
         hasExplicitYears: true
       };
+    }
+
+    // 2. Specific year requirements: "5+ years", "5+ yrs", "5 years of experience", "minimum 3 years"
+    const expPattern = /\b(?:minimum(?:\s+of)?|min\.?|at least|\b)\s*([1-9]|1[0-9])\s*(\+)?\s*(?:years?|yrs?)(?:\s+of)?(?:\s+[\w/\-]{1,30})*\s*(?:experience|engineering|development|background|track record)?\b/gi;
+    const matches = [...text.matchAll(expPattern)];
+
+    if (matches.length > 0) {
+      const validMatches = matches.map(m => {
+        const num = Number(m[1]);
+        const hasPlus = m[2] === '+' || m[0].includes('+');
+        return { num, hasPlus };
+      }).filter(m => !isNaN(m.num) && m.num > 0 && m.num <= 15);
+
+      if (validMatches.length > 0) {
+        const primary = validMatches[0];
+        return {
+          requiredExpStr: `${primary.num}${primary.hasPlus ? '+' : ''} yrs`,
+          minYears: primary.num,
+          maxYears: primary.num + 2,
+          isJunior: isJuniorRole && primary.num <= 2,
+          isSenior: isSeniorRole || primary.num >= 5,
+          hasExplicitYears: true
+        };
+      }
     }
   }
 
@@ -262,8 +277,21 @@ export function extractJobExperienceDemands(fullText: string, title: string) {
     };
   }
 
+  // Check if role demands heavy autonomous architecture
+  const hasHighComplexityDemands = /\b(distributed systems|kubernetes|cluster|multi[\s\-]?region|cloud architecture|microservices architecture|staff|principal)\b/i.test(fullText);
+  if (hasHighComplexityDemands) {
+    return {
+      requiredExpStr: 'Mid-Senior Scope (3–5 yrs)',
+      minYears: 3,
+      maxYears: 5,
+      isJunior: false,
+      isSenior: false,
+      hasExplicitYears: false
+    };
+  }
+
   return {
-    requiredExpStr: 'Scope & Deliverables based (2–4 yrs)',
+    requiredExpStr: 'Scope-based evaluation',
     minYears: 2,
     maxYears: 4,
     isJunior: false,
@@ -346,60 +374,129 @@ export const DISCIPLINE_CATALOG: DisciplineDefinition[] = [
     keywords: /\b(software|developer|engineer|backend|frontend|full[\s\-]?stack|devops|\bsre\b|cloud architect|systems engineer|microservice|distributed|web application|programming|coding)\b/i,
     competencies: [
       {
-        id: 'swe_llm_agents',
-        name: 'LLM Agents & Context Systems',
-        keywords: /\b(agentic|agents?|orchestration|llms?|large language model|langchain|llamaindex|prompt engineering|vector|rag|retrieval|context systems?|close[\s\-]?to[\s\-]?model)\b/i,
-        evidenceLabel: 'LLM Agent Architecture & Context Systems',
-        gapLabel: 'LLM agent orchestration & context systems'
+        id: 'swe_rag_vector',
+        name: 'GenAI, RAG & Vector Retrieval',
+        keywords: /\b(genai|llms?|large language model|rag|retrieval|grounding|chunking|embeddings?|vector search|azure ai search|pinecone|weaviate|qdrant|chroma|milvus|semantic retrieval|knowledge graphs?)\b/i,
+        evidenceLabel: 'Production RAG, Vector Search & Embeddings',
+        gapLabel: 'Production RAG, vector search & semantic embeddings'
       },
       {
-        id: 'swe_backend',
-        name: 'Distributed Backend & APIs',
-        keywords: /\b(backend|distributed|microservice|server|api|rest|grpc|trpc|graphql|node|java|go|python|typescript|fastapi|django|spring|postgresql|mysql|sql)\b/i,
-        evidenceLabel: 'Distributed Backend & Systems Engineering',
-        gapLabel: 'Distributed backend & server architecture'
+        id: 'swe_llm_agents',
+        name: 'LLM Agents & Multi-Agent Orchestration',
+        keywords: /\b(langgraph|crewai|autogen|agentic|agents?|orchestration|multi[\s\-]?agent|tool[\s\-]?calling|workflow management|state management|agent workflows?|close[\s\-]?to[\s\-]?model)\b/i,
+        evidenceLabel: 'Agent Orchestration & Multi-Agent Systems (LangGraph/CrewAI)',
+        gapLabel: 'Agent orchestration & multi-agent systems (LangGraph/CrewAI)'
+      },
+      {
+        id: 'swe_cloud_k8s',
+        name: 'Cloud Infrastructure & Kubernetes (AKS/AWS)',
+        keywords: /\b(cloud|azure|azure openai|aks|aws|gcp|kubernetes|k8s|docker|terraform|infrastructure as code|\biac\b|helm|cloud engineering)\b/i,
+        evidenceLabel: 'Cloud Infrastructure, Kubernetes & Terraform (AKS/AWS)',
+        gapLabel: 'Cloud infrastructure provisioning & Kubernetes workloads (AKS/AWS)'
+      },
+      {
+        id: 'swe_python_fastapi',
+        name: 'Python & FastAPI Backend Architecture',
+        keywords: /\b(python|fastapi|pydantic|asyncio|rest api|api development|django|flask|backend)\b/i,
+        evidenceLabel: 'Python & High-Performance API Engineering',
+        gapLabel: 'Python & FastAPI asynchronous backend engineering'
+      },
+      {
+        id: 'swe_observability',
+        name: 'Production Observability & Telemetry (LangSmith/OTel)',
+        keywords: /\b(observability|telemetry|langsmith|opentelemetry|\botel\b|azure monitor|prometheus|grafana|loki|monitoring|tracing|evals?)\b/i,
+        evidenceLabel: 'Production Telemetry, Observability & Tracing',
+        gapLabel: 'Production LLM & system observability (LangSmith/OpenTelemetry)'
       },
       {
         id: 'swe_tool_integrations',
-        name: 'Tool-Use Pipelines & Integrations',
-        keywords: /\b(tool[\s\-]?use|erp|accounting|compliance|integrations?|webhooks?|connectors?|data systems|pipeline)\b/i,
-        evidenceLabel: 'Tool-Use Pipelines & System Integrations',
-        gapLabel: 'Enterprise tool-use pipelines & system integrations'
+        name: 'Context Systems & Tool Integration (MCP)',
+        keywords: /\b(\bmcp\b|model context protocol|tool integration|enterprise systems|context systems?|webhooks?|connectors?|api integration|plugins?)\b/i,
+        evidenceLabel: 'Model Context Protocol (MCP) & Tool-Use Systems',
+        gapLabel: 'Enterprise tool/context integration patterns (MCP)'
       },
       {
-        id: 'swe_evals',
-        name: 'Agent Accuracy & Evaluation Frameworks',
-        keywords: /\b(evaluation frameworks?|evals?|accuracy|benchmarking|model evaluation|reliability|validation)\b/i,
-        evidenceLabel: 'Agent Accuracy, Evals & Reliability Frameworks',
-        gapLabel: 'LLM agent evaluation & accuracy benchmarking'
+        id: 'swe_security',
+        name: 'Enterprise Security, IAM & Secrets Management',
+        keywords: /\b(secrets management|identity|access control|key vault|azure key vault|iam|rbac|oauth|security practices|encryption)\b/i,
+        evidenceLabel: 'Enterprise Security, Secrets & Access Controls',
+        gapLabel: 'Enterprise security & secrets management (Key Vault/IAM)'
       },
       {
-        id: 'swe_cloud',
-        name: 'Cloud Infrastructure & Scalability',
-        keywords: /\b(cloud|\baws\b|\bgcp\b|azure|kubernetes|k8s|docker|terraform|infrastructure|\bs3\b|\brds\b|redis|scaling)\b/i,
-        evidenceLabel: 'Cloud Infrastructure & Scalability (AWS/K8s)',
-        gapLabel: 'Cloud infrastructure & scalability'
+        id: 'swe_cicd',
+        name: 'Automated CI/CD & Build Pipelines',
+        keywords: /\b(ci[\/\-]cd|github actions|pipelines?|automated testing|continuous integration|continuous deployment|devops)\b/i,
+        evidenceLabel: 'Automated CI/CD & Build Pipelines (GitHub Actions)',
+        gapLabel: 'Automated CI/CD workflows & release pipelines'
       },
       {
-        id: 'swe_async',
-        name: 'Event Streaming & Concurrency',
+        id: 'swe_backend_dist',
+        name: 'Distributed Systems & Data Architecture',
+        keywords: /\b(distributed|microservices?|grpc|trpc|graphql|postgresql|postgres|mysql|sql|redis|nosql|caching|data pipelines?|scalability)\b/i,
+        evidenceLabel: 'Distributed Systems & High-Throughput Databases',
+        gapLabel: 'Distributed systems & scalable database architecture'
+      },
+      {
+        id: 'swe_streaming',
+        name: 'Event Streaming & Real-Time Concurrency',
         keywords: /\b(kafka|event[\s\-]?driven|message queue|rabbitmq|pub[\/\-]sub|websocket|concurrency|throughput|low[\s\-]?latency)\b/i,
         evidenceLabel: 'Event Streaming & Real-Time Concurrency',
-        gapLabel: 'Event streaming & asynchronous pipelines'
-      },
-      {
-        id: 'swe_reliability',
-        name: 'Reliability, Testing & Observability',
-        keywords: /\b(observability|telemetry|prometheus|grafana|loki|testing|ci[\/\-]cd|git|linux|debugging|monitoring|mttr)\b/i,
-        evidenceLabel: 'Observability, CI/CD & Reliability',
-        gapLabel: 'Testing, CI/CD & system observability'
+        gapLabel: 'Event streaming & real-time messaging pipelines'
       },
       {
         id: 'swe_frontend',
-        name: 'Client Web Architecture & UI Systems',
-        keywords: /\b(react|typescript|javascript|frontend|next\.?js|html|css|tailwind|client state|ui components)\b/i,
-        evidenceLabel: 'Client Web Architecture & UI State',
+        name: 'Modern Web Architecture & UI State',
+        keywords: /\b(react|typescript|javascript|frontend|next\.?js|html|css|tailwind|client state|ui components|user interface)\b/i,
+        evidenceLabel: 'Client Web Architecture & UI Systems',
         gapLabel: 'Modern client web architecture & UI state'
+      }
+    ]
+  },
+  {
+    discipline: 'Data, Analytics & AI',
+    keywords: /\b(data analyst|data scientist|machine learning|deep learning|ai engineer|ai researcher|ml engineer|bi analyst|artificial intelligence|data science|computer vision|\bnlp\b|analytics|mlops)\b/i,
+    competencies: [
+      {
+        id: 'ai_rag_vector',
+        name: 'GenAI, RAG & Vector Retrieval',
+        keywords: /\b(genai|llms?|large language model|rag|retrieval|grounding|chunking|embeddings?|vector search|azure ai search|pinecone|weaviate|qdrant|chroma|milvus|semantic retrieval|knowledge graphs?)\b/i,
+        evidenceLabel: 'Production RAG, Vector Search & Semantic Embeddings',
+        gapLabel: 'Production RAG, vector search & semantic retrieval'
+      },
+      {
+        id: 'ai_llm_agents',
+        name: 'LLM Agents & Multi-Agent Orchestration',
+        keywords: /\b(langgraph|crewai|autogen|agentic|agents?|orchestration|multi[\s\-]?agent|tool[\s\-]?calling|workflow management|state management|agent workflows?)\b/i,
+        evidenceLabel: 'Agent Orchestration & Multi-Agent Frameworks',
+        gapLabel: 'Agent orchestration & multi-agent systems'
+      },
+      {
+        id: 'ai_ml_models',
+        name: 'Deep Learning & Applied ML Models',
+        keywords: /\b(pytorch|tensorflow|scikit[\s\-]?learn|huggingface|transformers|fine[\s\-]?tuning|model training|neural network|nlp|deep learning|ml models?)\b/i,
+        evidenceLabel: 'Deep Learning & Model Architecture (PyTorch/Transformers)',
+        gapLabel: 'Deep learning model training & fine-tuning'
+      },
+      {
+        id: 'ai_python_fastapi',
+        name: 'Python & High-Performance AI APIs',
+        keywords: /\b(python|fastapi|pydantic|asyncio|rest api|api development|flask|backend)\b/i,
+        evidenceLabel: 'Python & High-Performance AI API Engineering',
+        gapLabel: 'Python & FastAPI AI service development'
+      },
+      {
+        id: 'ai_cloud_mlops',
+        name: 'Cloud AI Infrastructure & MLOps (Kubernetes)',
+        keywords: /\b(cloud|azure|azure openai|aks|aws|kubernetes|k8s|docker|terraform|mlops|model serving|inference|gpu)\b/i,
+        evidenceLabel: 'Cloud AI Workload Deployment & MLOps (K8s/AKS)',
+        gapLabel: 'Cloud AI deployments & MLOps infrastructure'
+      },
+      {
+        id: 'ai_data_eng',
+        name: 'Data Engineering & Feature Pipelines',
+        keywords: /\b(data pipelines?|etl|spark|databricks|snowflake|bigquery|sql|feature store|data lake|kafka)\b/i,
+        evidenceLabel: 'Large-Scale Data Pipelines & Feature Engineering',
+        gapLabel: 'Data engineering & pipeline architecture'
       }
     ]
   },
@@ -588,11 +685,11 @@ export function detectDiscipline(text: string, titleHint: string = ''): Professi
   if (/\b(human resources|\bhr\b|hrms|recruiter|recruitment|talent acquisition|people operations|payroll|generalist)\b/i.test(title)) {
     return 'Human Resources';
   }
+  if (/\b(data analyst|data scientist|machine learning|deep learning|ai engineer|ai researcher|ml engineer|bi analyst|artificial intelligence)\b/i.test(title)) {
+    return 'Data, Analytics & AI';
+  }
   if (/\b(software|developer|engineer|backend|frontend|full[\s\-]?stack|devops|\bsre\b|cloud architect|firmware)\b/i.test(title)) {
     return 'Software & Systems Engineering';
-  }
-  if (/\b(data analyst|data scientist|machine learning|deep learning|ai engineer|bi analyst)\b/i.test(title)) {
-    return 'Data, Analytics & AI';
   }
   if (/\b(marketing|\bseo\b|content strategist|growth|copywriter|social media|advertising|brand manager)\b/i.test(title)) {
     return 'Marketing & Communications';
@@ -635,12 +732,18 @@ export function analyzeCompetencies(
   candidateDiscipline: ProfessionalDiscipline,
   techScore: number
 ) {
+  const isPeerTechnicalDiscipline =
+    (jobDiscipline === 'Software & Systems Engineering' && candidateDiscipline === 'Data, Analytics & AI') ||
+    (jobDiscipline === 'Data, Analytics & AI' && candidateDiscipline === 'Software & Systems Engineering');
+
   const isDisciplineMismatch =
     jobDiscipline !== 'General Professional' &&
     candidateDiscipline !== 'General Professional' &&
-    jobDiscipline !== candidateDiscipline;
+    jobDiscipline !== candidateDiscipline &&
+    !isPeerTechnicalDiscipline;
 
   const catalogEntry = DISCIPLINE_CATALOG.find(d => d.discipline === jobDiscipline) ||
+    DISCIPLINE_CATALOG.find(d => d.discipline === 'Software & Systems Engineering') ||
     DISCIPLINE_CATALOG.find(d => d.discipline === 'General Professional')!;
 
   // 1. Rank competencies dynamically by how heavily they are demanded in this specific job description
@@ -668,16 +771,16 @@ export function analyzeCompetencies(
     let pct: number;
     if (jobHits > 0 && candHits === 0) {
       // Required by job, but candidate has ZERO proof on resume!
-      pct = Math.max(18, Math.min(32, Math.round(22 + Math.random() * 8)));
+      pct = Math.max(14, Math.min(26, Math.round(18 + Math.random() * 6)));
     } else if (candHits === 1) {
       // Foundational mention / single hit
-      pct = Math.max(48, Math.min(62, Math.round(52 + Math.random() * 8)));
+      pct = Math.max(48, Math.min(62, Math.round(52 + Math.random() * 6)));
     } else if (candHits >= 2) {
       // Strong proven deliverables
-      pct = Math.max(80, Math.min(94, Math.round(84 + Math.min(8, candHits * 2))));
+      pct = Math.max(82, Math.min(94, Math.round(84 + Math.min(8, candHits * 2))));
     } else {
       // General skill not specifically emphasized in job
-      pct = Math.max(35, Math.min(55, Math.round(42 + (techScore / 4) * 10)));
+      pct = Math.max(30, Math.min(50, Math.round(38 + (techScore / 4) * 8)));
     }
 
     return {
@@ -749,10 +852,15 @@ export function runContextSubagent(job: Partial<JobListing>, resume: CandidateRe
   const jobDiscipline = detectDiscipline(fullJobText, title);
   const candidateDiscipline = resume.candidateDiscipline || detectDiscipline(resume.fullResumeText || '', resume.targetRole || '');
 
+  const isPeerTechnicalDiscipline =
+    (jobDiscipline === 'Software & Systems Engineering' && candidateDiscipline === 'Data, Analytics & AI') ||
+    (jobDiscipline === 'Data, Analytics & AI' && candidateDiscipline === 'Software & Systems Engineering');
+
   const isDisciplineMismatch =
     jobDiscipline !== 'General Professional' &&
     candidateDiscipline !== 'General Professional' &&
-    jobDiscipline !== candidateDiscipline;
+    jobDiscipline !== candidateDiscipline &&
+    !isPeerTechnicalDiscipline;
 
   const autonomyLevel = expInfo.isSenior
     ? 'Lead / Senior Autonomous Scope'
@@ -1013,7 +1121,7 @@ app.post('/api/scan-job', async (req, res) => {
 
     const reqDisplay = expInfo.hasExplicitYears
       ? expInfo.requiredExpStr.replace(' years', ' yrs')
-      : (expInfo.isSenior ? '5+ yrs' : (expInfo.isJunior ? '0 – 2 yrs' : '2 – 4 yrs'));
+      : (expInfo.isSenior ? '5+ yrs' : (expInfo.isJunior ? '0 – 2 yrs' : (expInfo.minYears === 3 ? '3 – 5 yrs' : 'Scope-based')));
 
     const experienceComparison = {
       required: reqDisplay,

@@ -180,9 +180,18 @@ function extractActiveJobDetails() {
       '.job-details-jobs-unified-top-card__bullet, .jobs-unified-top-card__bullet, .jobs-unified-top-card__workplace-type'
     )?.innerText?.trim() || 'Detected Listing';
 
-    const descEl = (detailPane || document).querySelector(
-      '#job-details, .jobs-description__content, .jobs-description-content__text, [data-view-name="job-details-component"], .jobs-box__html-content, article.jobs-description__container, article'
-    );
+    // Specifically target LinkedIn's core job details container first
+    let descEl = (detailPane || document).querySelector('#job-details');
+    if (!descEl || !descEl.innerText?.trim()) {
+      descEl = (detailPane || document).querySelector(
+        '.jobs-description__content, .jobs-description-content__text, .jobs-box__html-content, article.jobs-description__container'
+      );
+    }
+    if (!descEl || !descEl.innerText?.trim()) {
+      descEl = (detailPane || document).querySelector(
+        '[data-view-name="job-details-component"], article, main'
+      );
+    }
     description = descEl?.innerText?.trim() || '';
   }
   // 2. Google Careers
