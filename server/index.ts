@@ -199,19 +199,15 @@ export function extractJobExperienceDemands(fullText: string, title: string) {
   const isSeniorRole = /\b(senior|sr\.?|staff|principal|lead|director|manager|architect|head of|vp)\b/i.test(title);
   const isJuniorRole = /\b(junior|jr\.?|entry[\s\-]?level|new[\s\-]?grad(?:uate)?|fresher|graduate|associate|trainee|intern)\b/i.test(title);
 
-  const qualMatch = fullText.match(/(?:minimum qualifications|basic qualifications|qualifications|requirements|what you(?:'ll)? need|what we(?:'re)? looking for)[\s\S]{0,1400}/i);
-  const targetText = qualMatch ? qualMatch[0] : fullText;
-
-  // 1. Explicit ranges: "3-5 years", "2 to 4 years", "1–3 yrs"
-  const rangeMatch = targetText.match(/\b([0-9]|1[0-9])\s*(?:–|-|—|to)\s*([0-9]|1[0-9])\+?\s*years?/i) ||
-                    fullText.match(/\b([0-9]|1[0-9])\s*(?:–|-|—|to)\s*([0-9]|1[0-9])\+?\s*years?/i);
-
-  if (rangeMatch) {
-    const numbers = rangeMatch[0].match(/\b\d+\b/g)?.map(Number) || [2, 4];
+  // 1. Explicit ranges: "3-5 years", "2 to 4 years", "1–3 yrs", "3 - 5 yrs"
+  const rangePattern = /\b([0-9]|1[0-9])\s*(?:–|-|—|to)\s*([0-9]|1[0-9])\+?\s*(?:years?|yrs?)/gi;
+  const rangeMatches = [...fullText.matchAll(rangePattern)];
+  if (rangeMatches.length > 0) {
+    const numbers = rangeMatches[0][0].match(/\b\d+\b/g)?.map(Number) || [2, 4];
     const min = numbers[0] ?? 2;
     const max = numbers[1] ?? min + 2;
     return {
-      requiredExpStr: `${min}–${max} years`,
+      requiredExpStr: `${min}–${max} yrs`,
       minYears: min,
       maxYears: max,
       isJunior: isJuniorRole || min <= 1,
@@ -220,37 +216,25 @@ export function extractJobExperienceDemands(fullText: string, title: string) {
     };
   }
 
-  // 2. Specific year requirements: "2 years of experience", "2+ years", "3 years experience with"
-  const expPattern = /\b([1-9]|1[0-9])\s*(\+)?\s*years?(?:\s+of)?(?:\s+(?:relevant|industry|work|hands[\s\-]?on|professional|operational)?\s*experience)?/gi;
-  const matches = [...targetText.matchAll(expPattern)];
+  // 2. Specific year requirements: "3+ years", "3 years of experience", "2+ yrs"
+  const expPattern = /\b([1-9]|1[0-9])\s*(\+)?\s*(?:years?|yrs?)(?:\s+of)?(?:\s+(?:relevant|industry|work|hands[\s\-]?on|professional|operational|engineering|backend|software)?\s*(?:experience|engineering|development|background))?/gi;
+  const matches = [...fullText.matchAll(expPattern)];
 
   if (matches.length > 0) {
-    const numbers = matches.map(m => Number(m[1])).filter(n => !isNaN(n) && n > 0 && n <= 15);
-    if (numbers.length > 0) {
-      const primaryYear = Math.max(...numbers);
-      const hasPlus = matches.some(m => m[2] === '+');
-      return {
-        requiredExpStr: `${primaryYear}${hasPlus ? '+' : ''} years`,
-        minYears: primaryYear,
-        maxYears: primaryYear + 2,
-        isJunior: isJuniorRole && primaryYear <= 2,
-        isSenior: isSeniorRole || primaryYear >= 5,
-        hasExplicitYears: true
-      };
-    }
-  }
+    const validMatches = matches.map(m => {
+      const num = Number(m[1]);
+      const hasPlus = m[2] === '+' || m[0].includes('+');
+      return { num, hasPlus };
+    }).filter(m => !isNaN(m.num) && m.num > 0 && m.num <= 15);
 
-  const fallbackMatches = [...fullText.matchAll(expPattern)];
-  if (fallbackMatches.length > 0) {
-    const numbers = fallbackMatches.map(m => Number(m[1])).filter(n => !isNaN(n) && n > 0 && n <= 15);
-    if (numbers.length > 0) {
-      const primaryYear = Math.max(...numbers);
+    if (validMatches.length > 0) {
+      const primary = validMatches[0];
       return {
-        requiredExpStr: `${primaryYear} years`,
-        minYears: primaryYear,
-        maxYears: primaryYear + 2,
-        isJunior: isJuniorRole && primaryYear <= 2,
-        isSenior: isSeniorRole || primaryYear >= 5,
+        requiredExpStr: `${primary.num}${primary.hasPlus ? '+' : ''} yrs`,
+        minYears: primary.num,
+        maxYears: primary.num + 2,
+        isJunior: isJuniorRole && primary.num <= 2,
+        isSenior: isSeniorRole || primary.num >= 5,
         hasExplicitYears: true
       };
     }
@@ -258,9 +242,9 @@ export function extractJobExperienceDemands(fullText: string, title: string) {
 
   if (isSeniorRole) {
     return {
-      requiredExpStr: 'Not specified (Senior Scope)',
-      minYears: 4,
-      maxYears: 7,
+      requiredExpStr: 'Senior Scope (5+ yrs baseline)',
+      minYears: 5,
+      maxYears: 8,
       isJunior: false,
       isSenior: true,
       hasExplicitYears: false
@@ -269,7 +253,7 @@ export function extractJobExperienceDemands(fullText: string, title: string) {
 
   if (isJuniorRole) {
     return {
-      requiredExpStr: 'Not specified (Entry-Level Scope)',
+      requiredExpStr: 'Entry-Level Scope (0–2 yrs)',
       minYears: 0,
       maxYears: 2,
       isJunior: true,
@@ -279,9 +263,9 @@ export function extractJobExperienceDemands(fullText: string, title: string) {
   }
 
   return {
-    requiredExpStr: 'Not specified (Scope & Deliverables based)',
-    minYears: 1,
-    maxYears: 3,
+    requiredExpStr: 'Scope & Deliverables based (2–4 yrs)',
+    minYears: 2,
+    maxYears: 4,
     isJunior: false,
     isSenior: false,
     hasExplicitYears: false
@@ -362,11 +346,32 @@ export const DISCIPLINE_CATALOG: DisciplineDefinition[] = [
     keywords: /\b(software|developer|engineer|backend|frontend|full[\s\-]?stack|devops|\bsre\b|cloud architect|systems engineer|microservice|distributed|web application|programming|coding)\b/i,
     competencies: [
       {
+        id: 'swe_llm_agents',
+        name: 'LLM Agents & Context Systems',
+        keywords: /\b(agentic|agents?|orchestration|llms?|large language model|langchain|llamaindex|prompt engineering|vector|rag|retrieval|context systems?|close[\s\-]?to[\s\-]?model)\b/i,
+        evidenceLabel: 'LLM Agent Architecture & Context Systems',
+        gapLabel: 'LLM agent orchestration & context systems'
+      },
+      {
         id: 'swe_backend',
         name: 'Distributed Backend & APIs',
-        keywords: /\b(backend|distributed|microservice|server|api|rest|grpc|trpc|graphql|node|java|go|python|spring|postgresql|mysql)\b/i,
-        evidenceLabel: 'Distributed Backend & API Architecture',
+        keywords: /\b(backend|distributed|microservice|server|api|rest|grpc|trpc|graphql|node|java|go|python|typescript|fastapi|django|spring|postgresql|mysql|sql)\b/i,
+        evidenceLabel: 'Distributed Backend & Systems Engineering',
         gapLabel: 'Distributed backend & server architecture'
+      },
+      {
+        id: 'swe_tool_integrations',
+        name: 'Tool-Use Pipelines & Integrations',
+        keywords: /\b(tool[\s\-]?use|erp|accounting|compliance|integrations?|webhooks?|connectors?|data systems|pipeline)\b/i,
+        evidenceLabel: 'Tool-Use Pipelines & System Integrations',
+        gapLabel: 'Enterprise tool-use pipelines & system integrations'
+      },
+      {
+        id: 'swe_evals',
+        name: 'Agent Accuracy & Evaluation Frameworks',
+        keywords: /\b(evaluation frameworks?|evals?|accuracy|benchmarking|model evaluation|reliability|validation)\b/i,
+        evidenceLabel: 'Agent Accuracy, Evals & Reliability Frameworks',
+        gapLabel: 'LLM agent evaluation & accuracy benchmarking'
       },
       {
         id: 'swe_cloud',
@@ -638,34 +643,46 @@ export function analyzeCompetencies(
   const catalogEntry = DISCIPLINE_CATALOG.find(d => d.discipline === jobDiscipline) ||
     DISCIPLINE_CATALOG.find(d => d.discipline === 'General Professional')!;
 
-  const competencies = catalogEntry.competencies.slice(0, 4);
+  // 1. Rank competencies dynamically by how heavily they are demanded in this specific job description
+  const scoredCompetencies = catalogEntry.competencies.map(comp => {
+    const jobHits = (jobText.match(new RegExp(comp.keywords.source, 'gi')) || []).length;
+    const candHits = (candidateText.match(new RegExp(comp.keywords.source, 'gi')) || []).length;
+    return { comp, jobHits, candHits };
+  });
 
-  const competencyAlignment = competencies.map((comp, idx) => {
+  // Sort by job demand first (skills with highest jobHits appear at top)
+  scoredCompetencies.sort((a, b) => b.jobHits - a.jobHits);
+
+  // Pick top 4 competencies most relevant to THIS specific job
+  const selected = scoredCompetencies.slice(0, 4);
+
+  // 2. Score candidate truthfully based on verified resume deliverables vs job requirements
+  const competencyAlignment = selected.map(({ comp, jobHits, candHits }) => {
     if (isDisciplineMismatch) {
-      const mismatchPct = Math.max(6, Math.min(20, Math.round(12 - idx * 2 + Math.random() * 3)));
       return {
         skill: comp.name,
-        percentage: mismatchPct
+        percentage: Math.max(8, Math.min(22, 12 + Math.round(Math.random() * 8)))
       };
     }
 
-    const candHits = (candidateText.match(new RegExp(comp.keywords.source, 'gi')) || []).length;
-    const jobHits = (jobText.match(new RegExp(comp.keywords.source, 'gi')) || []).length;
-
-    let basePct: number;
-    if (candHits >= 3) {
-      basePct = 86 + Math.min(8, candHits);
-    } else if (candHits >= 1) {
-      basePct = 72 + candHits * 5;
-    } else if (jobHits > 0) {
-      basePct = 42 + Math.min(10, Math.round((techScore / 4) * 10));
+    let pct: number;
+    if (jobHits > 0 && candHits === 0) {
+      // Required by job, but candidate has ZERO proof on resume!
+      pct = Math.max(18, Math.min(32, Math.round(22 + Math.random() * 8)));
+    } else if (candHits === 1) {
+      // Foundational mention / single hit
+      pct = Math.max(48, Math.min(62, Math.round(52 + Math.random() * 8)));
+    } else if (candHits >= 2) {
+      // Strong proven deliverables
+      pct = Math.max(80, Math.min(94, Math.round(84 + Math.min(8, candHits * 2))));
     } else {
-      basePct = 52 + Math.round((techScore / 4) * 12);
+      // General skill not specifically emphasized in job
+      pct = Math.max(35, Math.min(55, Math.round(42 + (techScore / 4) * 10)));
     }
-    const finalPct = Math.min(95, Math.max(30, Math.round(basePct + (techScore - 2.5) * 3)));
+
     return {
       skill: comp.name,
-      percentage: finalPct
+      percentage: pct
     };
   });
 
@@ -679,32 +696,32 @@ export function analyzeCompetencies(
       isStretch: true
     });
 
-    for (const comp of competencies.slice(0, 3)) {
+    for (const { comp } of selected.slice(0, 2)) {
       evidence.push({
         text: `Missing: ${comp.gapLabel}`,
-        tag: 'Core gap',
+        tag: 'Discipline barrier',
         status: 'mismatch',
         isStretch: true
       });
     }
   } else {
-    for (const comp of competencies) {
-      const candHits = (candidateText.match(new RegExp(comp.keywords.source, 'gi')) || []).length;
-      if (candHits >= 2 && techScore >= 2.5) {
+    for (const { comp, jobHits, candHits } of selected) {
+      if (jobHits > 0 && candHits === 0) {
         evidence.push({
-          text: comp.evidenceLabel,
-          tag: 'Strong match',
-          status: 'strong'
+          text: `Missing: ${comp.gapLabel}`,
+          tag: 'Skill gap',
+          status: 'mismatch',
+          isStretch: true
         });
-      } else if (candHits >= 1) {
+      } else if (candHits >= 2) {
         evidence.push({
           text: comp.evidenceLabel,
           tag: 'Solid match',
-          status: 'good'
+          status: 'strong'
         });
-      } else {
+      } else if (candHits === 1) {
         evidence.push({
-          text: comp.gapLabel,
+          text: `Foundational: ${comp.name}`,
           tag: 'Learning curve',
           status: 'stretch',
           isStretch: true
@@ -785,12 +802,15 @@ CROSS-DOMAIN & QUALIFICATION CALIBRATION:
    }
 2. Experience Alignment:
    Candidate has ${candidateYears} years experience vs role demand (${expInfo.requiredExpStr}).
-   ${!isDisciplineMismatch && !expInfo.hasExplicitYears
-     ? (expInfo.isSenior
-       ? `Role title indicates Senior scope. Candidate brings verified deliverables. If deliverables compensate for years, this is a Strategic Reach (reach_apply).`
-       : (expInfo.isJunior
-         ? `Role has junior scope. Candidate directly meets and exceeds functional expectations.`
-         : `Posting is scope-based. Candidate is evaluated on competency synergy.`
+   ${!isDisciplineMismatch
+     ? (expInfo.isSenior && candidateYears < 3.5
+       ? `CRITICAL SENIORITY MISMATCH: Candidate has only ${candidateYears} years experience applying to a Senior role requiring 5+ years. A junior/mid candidate cannot bridge senior autonomous scope, architecture ownership, and leadership. Verdict MUST be experience_mismatch.`
+       : (expInfo.hasExplicitYears && (expInfo.minYears - candidateYears >= 1.5 || candidateYears / expInfo.minYears < 0.65)
+         ? `CRITICAL TENURE DEFICIT: Candidate has only ${candidateYears} years vs explicit requirement of ${expInfo.requiredExpStr}. High probability of hard ATS and recruiter screen rejection. Verdict MUST be experience_mismatch.`
+         : (expInfo.isJunior
+           ? `Role has junior scope. Candidate meets or exceeds functional expectations.`
+           : `Posting is evaluated on verified deliverables and competency alignment.`
+         )
        )
      )
      : ''
@@ -944,6 +964,21 @@ app.post('/api/scan-job', async (req, res) => {
 
     const evidence = [...domainEvidence];
 
+    const candidateYears = candidate.experienceYears ?? 1.5;
+    const requiredMinYears = expInfo.minYears || (expInfo.isSenior ? 5 : (expInfo.isJunior ? 0 : 2));
+    const tenureDeficit = requiredMinYears - candidateYears;
+    const tenureRatio = candidateYears / Math.max(1, requiredMinYears);
+
+    // Hard Guardrails: Stop AI buttering on severe tenure / seniority mismatches!
+    const isSevereTenureMismatch =
+      (expInfo.isSenior && candidateYears < 3.5) ||
+      (expInfo.hasExplicitYears && tenureDeficit >= 1.5 && tenureRatio < 0.70) ||
+      (expScore < 1.6 && tenureDeficit >= 1.0);
+
+    if (isSevereTenureMismatch && !subagent.isDisciplineMismatch) {
+      verdictChoice = 'experience_mismatch';
+    }
+
     const isReach = verdictChoice === 'reach_apply';
     const isMismatch = verdictChoice === 'experience_mismatch' || verdictChoice === 'skill_mismatch';
 
@@ -954,23 +989,23 @@ app.post('/api/scan-job', async (req, res) => {
         status: 'mismatch',
         isStretch: true
       });
-    } else if (isReach) {
+    } else if (isSevereTenureMismatch || verdictChoice === 'experience_mismatch') {
       evidence.push({
-        text: `Less formal experience (${candidate.experienceYears} yrs vs ${expInfo.requiredExpStr || '3–5 yrs'})`,
-        tag: 'Manageable stretch',
-        status: 'stretch',
+        text: `Tenure deficit (${candidateYears} yrs vs ${expInfo.requiredExpStr})`,
+        tag: 'Tenure barrier',
+        status: 'mismatch',
         isStretch: true
       });
-    } else if (verdictChoice === 'experience_mismatch') {
+    } else if (isReach) {
       evidence.push({
-        text: `Formal tenure gap (${candidate.experienceYears} yrs vs ${expInfo.requiredExpStr || '5+ yrs'})`,
-        tag: 'Tenure gap',
-        status: 'mismatch',
+        text: `Calculated reach (${candidateYears} yrs vs ${expInfo.requiredExpStr})`,
+        tag: expScore < 1.8 ? 'Steep gap' : 'Borderline reach',
+        status: 'stretch',
         isStretch: true
       });
     } else {
       evidence.push({
-        text: `Formal experience satisfied (${candidate.experienceYears} yrs aligns with ${expInfo.requiredExpStr || 'requirements'})`,
+        text: `Tenure aligns (${candidateYears} yrs meets ${expInfo.requiredExpStr})`,
         tag: 'Qualified',
         status: 'strong'
       });
@@ -978,19 +1013,21 @@ app.post('/api/scan-job', async (req, res) => {
 
     const reqDisplay = expInfo.hasExplicitYears
       ? expInfo.requiredExpStr.replace(' years', ' yrs')
-      : (expInfo.isSenior ? '3 – 5 yrs' : (expInfo.isJunior ? '0 – 2 yrs' : '2 – 4 yrs'));
+      : (expInfo.isSenior ? '5+ yrs' : (expInfo.isJunior ? '0 – 2 yrs' : '2 – 4 yrs'));
 
     const experienceComparison = {
       required: reqDisplay,
-      candidate: `${candidate.experienceYears} yrs`,
+      candidate: `${candidateYears} yrs`,
       evaluationType: subagent.isDisciplineMismatch
         ? 'DISCIPLINE-BARRIER'
-        : (expInfo.hasExplicitYears ? 'YEARS-FILTER' : 'SCOPE-BASED'),
+        : (expInfo.hasExplicitYears ? 'YEARS-FILTER' : (expInfo.isSenior ? 'SENIOR-SCOPE' : 'SCOPE-BASED')),
       note: subagent.isDisciplineMismatch
         ? `Non-transferable field · Direct discipline barrier`
-        : (isReach
-          ? 'Scope-based evaluation · Manageable stretch'
-          : (isMismatch ? 'Strict tenure filters · High screening barrier' : 'Direct experience match · Fully qualified'))
+        : (isSevereTenureMismatch
+          ? `Strict tenure filter · ${tenureDeficit.toFixed(1)} yr deficit below filter baseline`
+          : (isReach
+            ? (expScore < 1.8 ? 'Steep tenure stretch · High screening barrier' : 'Borderline reach · Requires standout deliverables')
+            : (isMismatch ? 'Strict tenure filters · High screening barrier' : 'Direct experience match · Fully qualified')))
     };
 
     let verdictHeadline = 'STRONG FIT';
@@ -1001,14 +1038,14 @@ app.post('/api/scan-job', async (req, res) => {
       verdictHeadline = 'DISCIPLINE MISMATCH';
       verdictSubtext = `Candidate background in ${candidate.candidateDiscipline} does not align with ${subagent.jobDiscipline} role expectations.`;
       badgeLabel = 'DISCIPLINE GAP';
+    } else if (isSevereTenureMismatch || verdictChoice === 'experience_mismatch') {
+      verdictHeadline = 'EXP MISMATCH';
+      verdictSubtext = `Candidate tenure (${candidateYears} yrs) falls significantly below ${expInfo.requiredExpStr}. High screening barrier.`;
+      badgeLabel = 'TENURE BARRIER';
     } else if (verdictChoice === 'reach_apply') {
       verdictHeadline = 'REACH APPLY';
-      verdictSubtext = 'Competency match is strong; experience scope is the main stretch.';
-      badgeLabel = 'COMPETITIVE CONTENDER';
-    } else if (verdictChoice === 'experience_mismatch') {
-      verdictHeadline = 'EXP MISMATCH';
-      verdictSubtext = 'Hard senior tenure filter likely to flag application automatically.';
-      badgeLabel = 'TENURE FILTER';
+      verdictSubtext = 'Competency match is solid; experience scope is a calculated reach.';
+      badgeLabel = 'REACH CANDIDATE';
     }
 
     // Dynamic Deep Rationale

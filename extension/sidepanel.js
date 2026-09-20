@@ -240,7 +240,7 @@ function renderVerdict(data, scraped) {
   const verdict = data.verdict || 'reach_apply';
   const headline = data.verdictHeadline || (verdict === 'can_apply' ? 'STRONG FIT' : (verdict === 'reach_apply' ? 'REACH APPLY' : 'EXP MISMATCH'));
   const subtext = data.verdictSubtext || 'Technical match is strong; experience is the main stretch.';
-  const badgeLabel = data.badgeLabel || (verdict === 'can_apply' ? 'Direct Fit' : (verdict === 'reach_apply' ? 'Competitive Contender' : 'Tenure Filter'));
+  const badgeLabel = data.badgeLabel || (verdict === 'can_apply' ? 'Direct Fit' : (verdict === 'reach_apply' ? 'Reach Candidate' : 'Tenure Barrier'));
 
   if (headlineEl) headlineEl.innerText = headline;
   if (subtextEl) subtextEl.innerText = subtext;
