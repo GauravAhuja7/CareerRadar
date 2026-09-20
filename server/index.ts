@@ -230,8 +230,8 @@ export function extractJobExperienceDemands(fullText: string, title: string) {
       };
     }
 
-    // 2. Specific year requirements: "5+ years", "5+ yrs", "5 years of experience", "minimum 3 years"
-    const expPattern = /\b(?:minimum(?:\s+of)?|min\.?|at least|\b)\s*([1-9]|1[0-9])\s*(\+)?\s*(?:years?|yrs?)(?:\s+of)?(?:\s+[\w/\-]{1,30})*\s*(?:experience|engineering|development|background|track record)?\b/gi;
+    // 2. Specific year requirements: "5+ years", "3 years of work experience", "3+ years of backend engineering", "minimum 3 years"
+    const expPattern = /\b(?:minimum(?:\s+of)?|min\.?|at least|\b)\s*([1-9]|1[0-9])\s*(\+)?\s*(?:years?|yrs?)(?:\s+of)?(?:\s+(?:work|hands[\s\-]?on|relevant|professional|commercial|industry|practical|backend|software|frontend|cloud|systems|engineering|development|experience|background|track record|comprising|in)){0,5}\b/gi;
     const matches = [...text.matchAll(expPattern)];
 
     if (matches.length > 0) {
@@ -374,23 +374,30 @@ export const DISCIPLINE_CATALOG: DisciplineDefinition[] = [
     keywords: /\b(software|developer|engineer|backend|frontend|full[\s\-]?stack|devops|\bsre\b|cloud architect|systems engineer|microservice|distributed|web application|programming|coding)\b/i,
     competencies: [
       {
+        id: 'swe_llm_apps',
+        name: 'LLM Application Engineering & Generative AI',
+        keywords: /\b(llms?|large language models?|genai|generative ai|foundation models?|prompt engineering|fine[\s\-]?tuning|openai|anthropic|claude|azure openai|close[\s\-]?to[\s\-]?model)\b/i,
+        evidenceLabel: 'LLM Application Engineering & Generative AI',
+        gapLabel: 'LLM application engineering & generative AI systems'
+      },
+      {
         id: 'swe_rag_vector',
-        name: 'GenAI, RAG & Vector Retrieval',
-        keywords: /\b(genai|llms?|large language model|rag|retrieval|grounding|chunking|embeddings?|vector search|azure ai search|pinecone|weaviate|qdrant|chroma|milvus|semantic retrieval|knowledge graphs?)\b/i,
+        name: 'Production RAG, Vector Search & Embeddings',
+        keywords: /\b(rag|retrieval[\s\-]?augmented|vector search|embeddings?|semantic search|semantic retrieval|pinecone|weaviate|qdrant|chroma|milvus|azure ai search|knowledge graphs?|chunking)\b/i,
         evidenceLabel: 'Production RAG, Vector Search & Embeddings',
         gapLabel: 'Production RAG, vector search & semantic embeddings'
       },
       {
         id: 'swe_llm_agents',
         name: 'LLM Agents & Multi-Agent Orchestration',
-        keywords: /\b(langgraph|crewai|autogen|agentic|agents?|orchestration|multi[\s\-]?agent|tool[\s\-]?calling|workflow management|state management|agent workflows?|close[\s\-]?to[\s\-]?model)\b/i,
+        keywords: /\b(langgraph|crewai|autogen|agentic|multi[\s\-]?agent|agents?|langchain|llamaindex|tool[\s\-]?calling|agent workflows?|agent orchestration|swarm)\b/i,
         evidenceLabel: 'Agent Orchestration & Multi-Agent Systems (LangGraph/CrewAI)',
         gapLabel: 'Agent orchestration & multi-agent systems (LangGraph/CrewAI)'
       },
       {
         id: 'swe_cloud_k8s',
         name: 'Cloud Infrastructure & Kubernetes (AKS/AWS)',
-        keywords: /\b(cloud|azure|azure openai|aks|aws|gcp|kubernetes|k8s|docker|terraform|infrastructure as code|\biac\b|helm|cloud engineering)\b/i,
+        keywords: /\b(cloud|azure|aks|aws|gcp|kubernetes|k8s|docker|terraform|infrastructure as code|\biac\b|helm|cloud engineering)\b/i,
         evidenceLabel: 'Cloud Infrastructure, Kubernetes & Terraform (AKS/AWS)',
         gapLabel: 'Cloud infrastructure provisioning & Kubernetes workloads (AKS/AWS)'
       },
@@ -425,7 +432,7 @@ export const DISCIPLINE_CATALOG: DisciplineDefinition[] = [
       {
         id: 'swe_cicd',
         name: 'Automated CI/CD & Build Pipelines',
-        keywords: /\b(ci[\/\-]cd|github actions|pipelines?|automated testing|continuous integration|continuous deployment|devops)\b/i,
+        keywords: /\b(ci[\/\-]cd|github actions|build pipelines?|release pipelines?|deployment pipelines?|automated testing|continuous integration|continuous deployment|devops|jenkins|circleci|argocd)\b/i,
         evidenceLabel: 'Automated CI/CD & Build Pipelines (GitHub Actions)',
         gapLabel: 'Automated CI/CD workflows & release pipelines'
       },
@@ -457,17 +464,24 @@ export const DISCIPLINE_CATALOG: DisciplineDefinition[] = [
     keywords: /\b(data analyst|data scientist|machine learning|deep learning|ai engineer|ai researcher|ml engineer|bi analyst|artificial intelligence|data science|computer vision|\bnlp\b|analytics|mlops)\b/i,
     competencies: [
       {
+        id: 'ai_llm_apps',
+        name: 'LLM Systems & Applied Generative AI',
+        keywords: /\b(llms?|large language models?|genai|generative ai|foundation models?|prompt engineering|fine[\s\-]?tuning|openai|anthropic|claude|azure openai|model serving)\b/i,
+        evidenceLabel: 'LLM Systems & Applied Generative AI',
+        gapLabel: 'Production LLM systems & generative AI models'
+      },
+      {
         id: 'ai_rag_vector',
-        name: 'GenAI, RAG & Vector Retrieval',
-        keywords: /\b(genai|llms?|large language model|rag|retrieval|grounding|chunking|embeddings?|vector search|azure ai search|pinecone|weaviate|qdrant|chroma|milvus|semantic retrieval|knowledge graphs?)\b/i,
+        name: 'Production RAG, Vector Search & Semantic Embeddings',
+        keywords: /\b(rag|retrieval[\s\-]?augmented|vector search|embeddings?|semantic search|semantic retrieval|pinecone|weaviate|qdrant|chroma|milvus|azure ai search|knowledge graphs?|chunking)\b/i,
         evidenceLabel: 'Production RAG, Vector Search & Semantic Embeddings',
-        gapLabel: 'Production RAG, vector search & semantic retrieval'
+        gapLabel: 'Production RAG, vector search & semantic embeddings'
       },
       {
         id: 'ai_llm_agents',
         name: 'LLM Agents & Multi-Agent Orchestration',
-        keywords: /\b(langgraph|crewai|autogen|agentic|agents?|orchestration|multi[\s\-]?agent|tool[\s\-]?calling|workflow management|state management|agent workflows?)\b/i,
-        evidenceLabel: 'Agent Orchestration & Multi-Agent Frameworks',
+        keywords: /\b(langgraph|crewai|autogen|agentic|multi[\s\-]?agent|ai agents?|autonomous agents?|tool[\s\-]?calling|agent workflows?|agent orchestration|swarm)\b/i,
+        evidenceLabel: 'Agent Orchestration & Multi-Agent Frameworks (LangGraph/CrewAI)',
         gapLabel: 'Agent orchestration & multi-agent systems'
       },
       {
@@ -753,11 +767,20 @@ export function analyzeCompetencies(
     return { comp, jobHits, candHits };
   });
 
-  // Sort by job demand first (skills with highest jobHits appear at top)
-  scoredCompetencies.sort((a, b) => b.jobHits - a.jobHits);
+  // Sort by job demand first (skills explicitly demanded in the job appear at the very top)
+  scoredCompetencies.sort((a, b) => {
+    if (b.jobHits !== a.jobHits) return b.jobHits - a.jobHits;
+    return b.candHits - a.candHits;
+  });
 
-  // Pick top 4 competencies most relevant to THIS specific job
-  const selected = scoredCompetencies.slice(0, 4);
+  // Select the competencies to evaluate: prioritize skills the job actually demands
+  const demanded = scoredCompetencies.filter(s => s.jobHits > 0);
+  const selected = demanded.length >= 4
+    ? demanded.slice(0, 4)
+    : [
+        ...demanded,
+        ...scoredCompetencies.filter(s => s.jobHits === 0).slice(0, Math.max(0, 4 - demanded.length))
+      ];
 
   // 2. Score candidate truthfully based on verified resume deliverables vs job requirements
   const competencyAlignment = selected.map(({ comp, jobHits, candHits }) => {
@@ -770,17 +793,17 @@ export function analyzeCompetencies(
 
     let pct: number;
     if (jobHits > 0 && candHits === 0) {
-      // Required by job, but candidate has ZERO proof on resume!
+      // Explicitly demanded by job, but candidate has ZERO proof on resume!
       pct = Math.max(14, Math.min(26, Math.round(18 + Math.random() * 6)));
+    } else if (candHits >= 2) {
+      // Strong proven deliverables
+      pct = Math.max(82, Math.min(96, Math.round(86 + Math.min(8, candHits * 2))));
     } else if (candHits === 1) {
       // Foundational mention / single hit
       pct = Math.max(48, Math.min(62, Math.round(52 + Math.random() * 6)));
-    } else if (candHits >= 2) {
-      // Strong proven deliverables
-      pct = Math.max(82, Math.min(94, Math.round(84 + Math.min(8, candHits * 2))));
     } else {
-      // General skill not specifically emphasized in job
-      pct = Math.max(30, Math.min(50, Math.round(38 + (techScore / 4) * 8)));
+      // Secondary skill not explicitly emphasized
+      pct = Math.max(25, Math.min(45, Math.round(32 + (techScore / 4) * 8)));
     }
 
     return {
@@ -808,8 +831,15 @@ export function analyzeCompetencies(
       });
     }
   } else {
+    // Only evaluate evidence for skills ACTUALLY DEMANDED by the job (jobHits > 0)
     for (const { comp, jobHits, candHits } of selected) {
-      if (jobHits > 0 && candHits === 0) {
+      if (jobHits === 0) {
+        // Job NEVER asked for this skill — NEVER claim it is a gap or a required match!
+        continue;
+      }
+
+      if (candHits === 0) {
+        // Job asked for this, but candidate lacks deliverables
         evidence.push({
           text: `Missing: ${comp.gapLabel}`,
           tag: 'Skill gap',
@@ -817,12 +847,14 @@ export function analyzeCompetencies(
           isStretch: true
         });
       } else if (candHits >= 2) {
+        // Job asked for this, and candidate has strong verified deliverables
         evidence.push({
           text: comp.evidenceLabel,
           tag: 'Solid match',
           status: 'strong'
         });
       } else if (candHits === 1) {
+        // Job asked for this, but candidate only has basic mention
         evidence.push({
           text: `Foundational: ${comp.name}`,
           tag: 'Learning curve',
@@ -996,6 +1028,7 @@ app.post('/api/scan-job', async (req, res) => {
   try {
     const subagent = runContextSubagent(job, candidate);
     const expInfo = subagent.expInfo;
+    console.log(`[CareerRadar Scan] Job: "${job.title}" at "${job.company}" | Exp Req: ${expInfo.requiredExpStr} (explicit: ${expInfo.hasExplicitYears}) | Cand: ${candidate.name} (${candidate.experienceYears}y) | Disc: ${subagent.jobDiscipline}`);
     const fullJobText = `${job.title || ''} ${job.company || ''} ${job.description || ''} ${job.coreMission || ''} ${job.engineeringDemands || ''}`;
     const resumeText = candidate.fullResumeText || '';
 
@@ -1174,6 +1207,8 @@ app.post('/api/scan-job', async (req, res) => {
       const topSkills = candidate.primaryTechnicalDomains.slice(0, 3).join(', ');
       interviewPitch = `"I bring demonstrated experience in ${topSkills}, and have delivered ${candidate.demonstratedScaleAndScope.split(';')[0] || 'proven deliverables'}, positioning me to contribute immediate production value to ${job.company}."`;
     }
+
+    console.log(`[CareerRadar Result] ${job.title} @ ${job.company} -> Verdict: ${verdictHeadline} (${verdictChoice}) | Fit: ${matchPercentage}% | Tech: ${techScore}/4 | Exp: ${expScore}/4`);
 
     res.json({
       jobId: job.id,

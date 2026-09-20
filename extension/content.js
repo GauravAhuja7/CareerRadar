@@ -260,18 +260,24 @@ function extractActiveJobDetails() {
   return { jobId, title, company, location, description };
 }
 
+let lastBroadcastedDescLength = 0;
+
 // ── Broadcast Job Context to Side Panel (H2/H3 fix: no more direct API calls) ──
 function broadcastJobContext() {
   if (!isJobPage()) return;
 
   const details = extractActiveJobDetails();
   const jobId = details.jobId;
+  const descLen = (details.description || '').length;
 
-  // Skip if already broadcasted this exact job
-  if (jobId && jobId === lastBroadcastedJobId) return;
+  // Skip ONLY if we already broadcasted this exact job AND the description length has not grown
+  if (jobId && jobId === lastBroadcastedJobId && Math.abs(descLen - lastBroadcastedDescLength) < 100) {
+    return;
+  }
 
   activeJobId = jobId;
   lastBroadcastedJobId = jobId;
+  lastBroadcastedDescLength = descLen;
 
   // Notify side panel with scraped data — sidepanel handles the API call
   safeSendMessage({
@@ -283,16 +289,34 @@ function broadcastJobContext() {
 
 // ── Debounced Trigger Helper ──
 function triggerDebouncedBroadcast(delayMs = 150) {
-  if (!isJobPage()) return;
   if (scanDebounceTimer) clearTimeout(scanDebounceTimer);
   scanDebounceTimer = setTimeout(() => {
     broadcastJobContext();
   }, delayMs);
 }
 
-// ── Watchdogs & Event System (M3 fix: smarter observation) ──
+// ── Watchdogs & Event System ──
 function initWatchdogs() {
   purgeStaleInjectedElements();
+
+  // Always register runtime message listener first so sidepanel can ALWAYS query this tab!
+  try {
+    chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+      if (msg.type === 'GET_ACTIVE_JOB_DETAILS') {
+        const active = extractActiveJobDetails();
+        sendResponse(active);
+        return true;
+      }
+      if (msg.type === 'URL_NAVIGATED' || msg.type === 'FORCE_SCAN_JOB') {
+        lastBroadcastedJobId = null;
+        lastBroadcastedDescLength = 0;
+        triggerDebouncedBroadcast(100);
+        return true;
+      }
+    });
+  } catch (e) {
+    console.warn('Could not attach runtime message listener:', e);
+  }
 
   if (!isJobPage()) return;
 
@@ -302,72 +326,73 @@ function initWatchdogs() {
       '.jobs-search-results__list-item, .job-card-container, .jobs-search-results-list__list-item, [data-occludable-job-id], [data-job-id], a[href*="/jobs/view/"], .scaffold-layout__list-item, [role="listitem"]'
     );
     if (jobClick) {
-      // Reset last broadcasted so we re-broadcast after click
       lastBroadcastedJobId = null;
-      triggerDebouncedBroadcast(150);
+      lastBroadcastedDescLength = 0;
+      // Staggered retries as LinkedIn renders details asynchronously
+      triggerDebouncedBroadcast(250);
+      setTimeout(() => broadcastJobContext(), 600);
+      setTimeout(() => broadcastJobContext(), 1200);
     }
   }, true);
 
   // 2. Watch URL changes via popstate/hashchange for SPA navigation
   window.addEventListener('popstate', () => {
     lastBroadcastedJobId = null;
-    triggerDebouncedBroadcast(100);
+    lastBroadcastedDescLength = 0;
+    triggerDebouncedBroadcast(150);
+    setTimeout(() => broadcastJobContext(), 600);
   });
   window.addEventListener('hashchange', () => {
     lastBroadcastedJobId = null;
-    triggerDebouncedBroadcast(100);
+    lastBroadcastedDescLength = 0;
+    triggerDebouncedBroadcast(150);
   });
 
   // 3. MutationObserver for LinkedIn's job detail pane changes
-  const detailPane = document.querySelector('.scaffold-layout__detail, .jobs-search__job-details, main');
+  const detailPane = document.querySelector('.scaffold-layout__detail, .jobs-search__job-details, #job-details, main');
   if (detailPane) {
     const observer = new MutationObserver(() => {
       const currentJobId = getActiveJobIdFromPage();
-      if (currentJobId && currentJobId !== lastBroadcastedJobId) {
+      const currentDescLen = document.querySelector('#job-details')?.innerText?.trim()?.length || 0;
+      if ((currentJobId && currentJobId !== lastBroadcastedJobId) || (currentDescLen > lastBroadcastedDescLength + 100)) {
         triggerDebouncedBroadcast(200);
       }
     });
     observer.observe(detailPane, { childList: true, subtree: true });
   }
 
-  // 4. Fallback interval at 2s (5x slower than before) for SPA edge cases only
+  // 4. Periodic check for SPA tab transitions
+  let checkCount = 0;
   let fallbackInterval = setInterval(() => {
-    if (!isJobPage()) {
-      clearInterval(fallbackInterval);
-      return;
-    }
     const currentUrl = window.location.href;
     const currentJobId = getActiveJobIdFromPage();
+    const currentDescLen = (document.querySelector('#job-details, .job-description, [data-qa="job-description"]')?.innerText || '').trim().length;
 
     if (currentJobId && currentJobId !== lastBroadcastedJobId) {
       lastKnownUrl = currentUrl;
-      triggerDebouncedBroadcast(100);
+      triggerDebouncedBroadcast(150);
     } else if (currentUrl !== lastKnownUrl) {
       lastKnownUrl = currentUrl;
       lastBroadcastedJobId = null;
-      triggerDebouncedBroadcast(100);
+      lastBroadcastedDescLength = 0;
+      triggerDebouncedBroadcast(150);
+    } else if (currentDescLen > lastBroadcastedDescLength + 100) {
+      triggerDebouncedBroadcast(150);
     }
-  }, 2000);
 
-  // 5. Service worker & side panel message listener
-  chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
-    if (msg.type === 'GET_ACTIVE_JOB_DETAILS') {
-      sendResponse(extractActiveJobDetails());
-      return true;
+    checkCount++;
+    if (checkCount > 120 && !isJobPage()) {
+      clearInterval(fallbackInterval);
     }
-    if (msg.type === 'URL_NAVIGATED' || msg.type === 'FORCE_SCAN_JOB') {
-      lastBroadcastedJobId = null;
-      triggerDebouncedBroadcast(50);
-    }
-  });
+  }, 1500);
 
-  // 6. Initial broadcast after page load
-  setTimeout(() => {
-    broadcastJobContext();
-  }, 350);
+  // 5. Initial broadcast after page load with staggered retries for async DOM hydration
+  setTimeout(() => broadcastJobContext(), 250);
+  setTimeout(() => broadcastJobContext(), 700);
+  setTimeout(() => broadcastJobContext(), 1500);
 }
 
-// Start immediately if on job page
+// Start immediately
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', initWatchdogs);
 } else {

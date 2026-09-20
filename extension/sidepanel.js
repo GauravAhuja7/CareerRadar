@@ -377,15 +377,21 @@ function renderVerdict(data, scraped) {
   }
 }
 
-// ── Sole Evaluation Engine (H2/H3 fix) ──
+// ── Sole Evaluation Engine ──
 let currentEvaluatedJobId = null;
+let lastEvaluatedDescLen = 0;
 
-async function evaluateJobDetails(scraped, fallbackTab = null) {
+async function evaluateJobDetails(scraped, fallbackTab = null, force = false) {
   if (!scraped || (!scraped.title && !scraped.description)) return;
 
   const jobId = scraped.jobId || scraped.url || (fallbackTab ? `tab-${fallbackTab.id}` : 'current-job');
-  if (currentEvaluatedJobId === jobId && activeJobData) return;
+  const descLen = (scraped.description || '').length;
+
+  if (!force && currentEvaluatedJobId === jobId && activeJobData && Math.abs(descLen - lastEvaluatedDescLen) < 100) {
+    return;
+  }
   currentEvaluatedJobId = jobId;
+  lastEvaluatedDescLen = descLen;
 
   if (currentSidepanelAbortController) {
     currentSidepanelAbortController.abort();
@@ -430,7 +436,7 @@ async function evaluateJobDetails(scraped, fallbackTab = null) {
   } catch (err) {
     if (err.name === 'AbortError') return;
     console.error('Scan error:', err);
-    // C2 fix: Show explicit error state instead of fake hardcoded verdict
+    // Show explicit error state instead of fake hardcoded verdict
     const errorMsg = err.message?.includes('Failed to fetch') || err.message?.includes('NetworkError')
       ? 'Backend server is unreachable. Start the server with npm run server'
       : `Evaluation failed: ${err.message || 'Unknown error'}`;
@@ -563,12 +569,10 @@ function isJobUrl(url = '') {
 }
 
 function checkAndAutoScanTab(tab) {
-  if (!tab || !tab.url) return;
-  if (isJobUrl(tab.url)) {
-    if (tab.url !== lastEvaluatedTabUrl) {
-      lastEvaluatedTabUrl = tab.url;
-      evaluateCurrentTab();
-    }
+  if (!tab || !tab.url || tab.url.startsWith('chrome://') || tab.url.startsWith('chrome-extension://')) return;
+  if (tab.url !== lastEvaluatedTabUrl) {
+    lastEvaluatedTabUrl = tab.url;
+    evaluateCurrentTab(true);
   }
 }
 
@@ -704,7 +708,7 @@ async function init() {
         });
         showToast('✓ Profile updated from resume');
         toggleProfileCard(false);
-        evaluateCurrentTab();
+        evaluateCurrentTab(true);
       }
     } catch (err) {
       console.error('File parse error:', err);
@@ -753,7 +757,7 @@ async function init() {
         });
         showToast('✓ Profile saved & calibrated');
         toggleProfileCard(false);
-        evaluateCurrentTab();
+        evaluateCurrentTab(true);
       }
     } catch (err) {
       console.error('Save error:', err);
@@ -768,16 +772,16 @@ async function init() {
     const { activeJobEvaluation } = await chrome.storage.local.get(['activeJobEvaluation']);
     const tab = await getActiveTab();
     if (activeJobEvaluation?.data && activeJobEvaluation?.scraped) {
-      renderVerdict(activeJobEvaluation.data, activeJobEvaluation.scraped);
+      if (tab?.url && activeJobEvaluation.scraped.url === tab.url) {
+        renderVerdict(activeJobEvaluation.data, activeJobEvaluation.scraped);
+      }
     }
-    // Always refresh scan for current tab if user is currently on a job page
-    if (tab && tab.url && isJobUrl(tab.url)) {
-      setTimeout(() => evaluateCurrentTab(), 150);
-    } else if (!activeJobEvaluation?.data) {
-      setTimeout(evaluateCurrentTab, 200);
+    // Always trigger fresh evaluation for the current tab
+    if (tab && tab.url && !tab.url.startsWith('chrome://') && !tab.url.startsWith('chrome-extension://')) {
+      setTimeout(() => evaluateCurrentTab(true), 100);
     }
   } catch {
-    setTimeout(evaluateCurrentTab, 200);
+    setTimeout(() => evaluateCurrentTab(true), 150);
   }
 
   // Automatic Scanning on Tab Switch or Navigation
@@ -796,10 +800,10 @@ async function init() {
     }
   });
 
-  // Listen for evaluations broadcast from content script (H2/H3 fix)
+  // Listen for evaluations broadcast from content script
   chrome.runtime.onMessage?.addListener((message) => {
     if (message.type === 'JOB_CONTEXT_UPDATED' && message.details) {
-      evaluateJobDetails(message.details);
+      evaluateJobDetails(message.details, null, true);
     }
   });
 
