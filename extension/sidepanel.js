@@ -591,11 +591,31 @@ async function init() {
 
   btnCopyPitch?.addEventListener('click', copyStrategicPitch);
 
-  // Keyboard Shortcuts (⌘R / Ctrl+R to rescan, Esc to close drawer)
+  const btnApplyAnyway = document.getElementById('btn-apply-anyway');
+  const btnOpenJob = document.getElementById('btn-open-job');
+
+  btnApplyAnyway?.addEventListener('click', () => {
+    copyStrategicPitch();
+    getActiveTab().then(tab => {
+      if (tab?.id) chrome.tabs.update(tab.id, { active: true });
+    });
+  });
+
+  btnOpenJob?.addEventListener('click', async () => {
+    const tab = await getActiveTab();
+    if (tab?.url) {
+      window.open(tab.url, '_blank');
+    }
+  });
+
+  // Keyboard Shortcuts (⌘R / Ctrl+R to rescan, ⌘↵ / Ctrl+Enter to apply, Esc to close drawer)
   document.addEventListener('keydown', (e) => {
     if ((e.metaKey || e.ctrlKey) && e.key === 'r') {
       e.preventDefault();
       evaluateCurrentTab();
+    } else if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+      e.preventDefault();
+      btnApplyAnyway?.click();
     } else if (e.key === 'Escape') {
       toggleReasoningDrawer(false);
       toggleProfileCard(false);
