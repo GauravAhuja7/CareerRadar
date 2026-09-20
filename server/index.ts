@@ -833,11 +833,11 @@ const upload = multer({ limits: { fileSize: 10 * 1024 * 1024 } }); // 10MB limit
 
 export function parseResumeIntelligently(text: string, overrides: any = {}) {
   // 1. Education Detection
-  const eduMatch = text.match(/(Indian Institute of Technology[^\n,]*|IIT[^\n,]*|National Institute[^\n,]*|BITS[^\n,]*|IIIT[^\n,]*|Stanford[^\n,]*|MIT|Berkeley|University[^\n,]*|College[^\n,]*)/i);
+  const eduMatch = text.match(/(Indian Institute of Technology[^\n,.;|]*|IIT[^\n,.;|]*|National Institute[^\n,.;|]*|BITS[^\n,.;|]*|IIIT[^\n,.;|]*|Stanford[^\n,.;|]*|MIT|Berkeley|University[^\n,.;|]*|College[^\n,.;|]*)/i);
   const college = eduMatch ? eduMatch[0].trim() : 'IIT / Tier-1 CS Graduate';
-  const degreeMatch = text.match(/(B\.?Tech[^\n,]*|M\.?Tech[^\n,]*|B\.?S\.?[^\n,]*|Bachelor[^\n,]*)/i);
+  const degreeMatch = text.match(/(B\.?Tech[^\n,.;|]*|M\.?Tech[^\n,.;|]*|B\.?S\.?[^\n,.;|]*|Bachelor[^\n,.;|]*)/i);
   const degree = degreeMatch ? degreeMatch[0].trim() : 'B.Tech in CSE';
-  const cgpaMatch = text.match(/(CGPA[:\s]*[\d\.]+|GPA[:\s]*[\d\.]+)/i);
+  const cgpaMatch = text.match(/(CGPA[:\s]*[\d.]+|GPA[:\s]*[\d.]+)/i);
   const cgpa = cgpaMatch ? cgpaMatch[0].trim() : '';
 
   // 2. Experience, Internships & Dates
