@@ -261,14 +261,61 @@ function extractActiveJobDetails() {
 }
 
 let lastBroadcastedDescLength = 0;
+let pendingJobClick = null;
 
-// ── Broadcast Job Context to Side Panel (H2/H3 fix: no more direct API calls) ──
+// ── Check if DOM detail pane is stale (still showing previous job) ──
+function isDetailPaneStale(details) {
+  // Check 1: If a job card was recently clicked, verify detail pane has updated to match
+  if (pendingJobClick && Date.now() - pendingJobClick.timestamp < 4000) {
+    if (pendingJobClick.title && details.title) {
+      const cleanClicked = pendingJobClick.title.toLowerCase().replace(/[^a-z0-9]/g, '');
+      const cleanScraped = details.title.toLowerCase().replace(/[^a-z0-9]/g, '');
+      if (!cleanScraped.includes(cleanClicked.slice(0, 8)) && !cleanClicked.includes(cleanScraped.slice(0, 8))) {
+        return true;
+      }
+    }
+  }
+
+  // Check 2: On LinkedIn, verify URL currentJobId vs detail pane's links
+  try {
+    const host = window.location.hostname.toLowerCase();
+    if (host.includes('linkedin.com')) {
+      const urlJobMatch = window.location.href.match(/[?&]currentJobId=(\d+)/);
+      if (urlJobMatch) {
+        const urlJobId = urlJobMatch[1];
+        const detailPane = document.querySelector('.jobs-search__job-details, .scaffold-layout__detail, #job-details');
+        if (detailPane) {
+          const detailLink = detailPane.querySelector('a[href*="/jobs/view/"]');
+          if (detailLink) {
+            const detailMatch = detailLink.href.match(/\/jobs\/view\/(\d+)/);
+            if (detailMatch && detailMatch[1] !== urlJobId) {
+              return true;
+            }
+          }
+        }
+      }
+    }
+  } catch {}
+
+  return false;
+}
+
+// ── Broadcast Job Context to Side Panel ──
 function broadcastJobContext() {
   if (!isJobPage()) return;
 
   const details = extractActiveJobDetails();
   const jobId = details.jobId;
   const descLen = (details.description || '').length;
+
+  // Guard against broadcasting stale DOM while host page is updating the detail pane
+  if (isDetailPaneStale(details)) {
+    triggerDebouncedBroadcast(250);
+    return;
+  }
+
+  // Clear pending click once verified
+  pendingJobClick = null;
 
   // Skip ONLY if we already broadcasted this exact job AND the description length has not grown
   if (jobId && jobId === lastBroadcastedJobId && Math.abs(descLen - lastBroadcastedDescLength) < 100) {
@@ -279,7 +326,7 @@ function broadcastJobContext() {
   lastBroadcastedJobId = jobId;
   lastBroadcastedDescLength = descLen;
 
-  // Notify side panel with scraped data — sidepanel handles the API call
+  // Notify side panel with verified scraped data — sidepanel handles the API call ONCE
   safeSendMessage({
     type: 'JOB_CONTEXT_UPDATED',
     details,
@@ -288,7 +335,7 @@ function broadcastJobContext() {
 }
 
 // ── Debounced Trigger Helper ──
-function triggerDebouncedBroadcast(delayMs = 150) {
+function triggerDebouncedBroadcast(delayMs = 250) {
   if (scanDebounceTimer) clearTimeout(scanDebounceTimer);
   scanDebounceTimer = setTimeout(() => {
     broadcastJobContext();
@@ -304,13 +351,21 @@ function initWatchdogs() {
     chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       if (msg.type === 'GET_ACTIVE_JOB_DETAILS') {
         const active = extractActiveJobDetails();
+        if (isDetailPaneStale(active)) {
+          sendResponse({
+            isTransitioning: true,
+            title: pendingJobClick?.title || active.title || 'Arbitrating Fit...',
+            company: pendingJobClick?.company || active.company || ''
+          });
+          return true;
+        }
         sendResponse(active);
         return true;
       }
       if (msg.type === 'URL_NAVIGATED' || msg.type === 'FORCE_SCAN_JOB') {
         lastBroadcastedJobId = null;
         lastBroadcastedDescLength = 0;
-        triggerDebouncedBroadcast(100);
+        triggerDebouncedBroadcast(200);
         return true;
       }
     });
@@ -326,12 +381,35 @@ function initWatchdogs() {
       '.jobs-search-results__list-item, .job-card-container, .jobs-search-results-list__list-item, [data-occludable-job-id], [data-job-id], a[href*="/jobs/view/"], .scaffold-layout__list-item, [role="listitem"]'
     );
     if (jobClick) {
+      const targetTitle = jobClick.querySelector(
+        '.job-card-list__title--link, .job-card-list__title, .artdeco-entity-lockup__title, strong, h3, a'
+      )?.innerText?.trim() || '';
+      const targetCompany = jobClick.querySelector(
+        '.artdeco-entity-lockup__subtitle, .job-card-container__primary-description, [data-anonymize="company-name"]'
+      )?.innerText?.trim() || '';
+      const targetJobId = jobClick.getAttribute('data-job-id') ||
+                          jobClick.getAttribute('data-occludable-job-id') ||
+                          jobClick.querySelector('a[href*="/jobs/view/"]')?.href?.match(/\/jobs\/view\/(\d+)/)?.[1];
+
+      // Immediately signal sidepanel to enter loading skeleton state for the clicked job
+      safeSendMessage({
+        type: 'JOB_CLICKED_LOADING',
+        title: targetTitle || 'Arbitrating Fit...',
+        company: targetCompany || ''
+      });
+
+      pendingJobClick = {
+        id: targetJobId || '',
+        title: targetTitle || '',
+        company: targetCompany || '',
+        timestamp: Date.now()
+      };
+
       lastBroadcastedJobId = null;
       lastBroadcastedDescLength = 0;
-      // Staggered retries as LinkedIn renders details asynchronously
-      triggerDebouncedBroadcast(250);
-      setTimeout(() => broadcastJobContext(), 600);
-      setTimeout(() => broadcastJobContext(), 1200);
+
+      // Single debounced broadcast once DOM updates
+      triggerDebouncedBroadcast(350);
     }
   }, true);
 
@@ -339,13 +417,12 @@ function initWatchdogs() {
   window.addEventListener('popstate', () => {
     lastBroadcastedJobId = null;
     lastBroadcastedDescLength = 0;
-    triggerDebouncedBroadcast(150);
-    setTimeout(() => broadcastJobContext(), 600);
+    triggerDebouncedBroadcast(250);
   });
   window.addEventListener('hashchange', () => {
     lastBroadcastedJobId = null;
     lastBroadcastedDescLength = 0;
-    triggerDebouncedBroadcast(150);
+    triggerDebouncedBroadcast(250);
   });
 
   // 3. MutationObserver for LinkedIn's job detail pane changes
@@ -354,8 +431,12 @@ function initWatchdogs() {
     const observer = new MutationObserver(() => {
       const currentJobId = getActiveJobIdFromPage();
       const currentDescLen = document.querySelector('#job-details')?.innerText?.trim()?.length || 0;
-      if ((currentJobId && currentJobId !== lastBroadcastedJobId) || (currentDescLen > lastBroadcastedDescLength + 100)) {
-        triggerDebouncedBroadcast(200);
+      if (
+        pendingJobClick ||
+        (currentJobId && currentJobId !== lastBroadcastedJobId) ||
+        (currentDescLen > lastBroadcastedDescLength + 100)
+      ) {
+        triggerDebouncedBroadcast(300);
       }
     });
     observer.observe(detailPane, { childList: true, subtree: true });
@@ -370,14 +451,14 @@ function initWatchdogs() {
 
     if (currentJobId && currentJobId !== lastBroadcastedJobId) {
       lastKnownUrl = currentUrl;
-      triggerDebouncedBroadcast(150);
+      triggerDebouncedBroadcast(250);
     } else if (currentUrl !== lastKnownUrl) {
       lastKnownUrl = currentUrl;
       lastBroadcastedJobId = null;
       lastBroadcastedDescLength = 0;
-      triggerDebouncedBroadcast(150);
+      triggerDebouncedBroadcast(250);
     } else if (currentDescLen > lastBroadcastedDescLength + 100) {
-      triggerDebouncedBroadcast(150);
+      triggerDebouncedBroadcast(250);
     }
 
     checkCount++;
@@ -386,10 +467,8 @@ function initWatchdogs() {
     }
   }, 1500);
 
-  // 5. Initial broadcast after page load with staggered retries for async DOM hydration
-  setTimeout(() => broadcastJobContext(), 250);
-  setTimeout(() => broadcastJobContext(), 700);
-  setTimeout(() => broadcastJobContext(), 1500);
+  // 5. Initial broadcast after page load with single debounced check
+  setTimeout(() => broadcastJobContext(), 400);
 }
 
 // Start immediately

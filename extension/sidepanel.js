@@ -380,6 +380,7 @@ function renderVerdict(data, scraped) {
 // ── Sole Evaluation Engine ──
 let currentEvaluatedJobId = null;
 let lastEvaluatedDescLen = 0;
+let latestEvaluationSequence = 0;
 
 async function evaluateJobDetails(scraped, fallbackTab = null, force = false) {
   if (!scraped || (!scraped.title && !scraped.description)) return;
@@ -390,8 +391,8 @@ async function evaluateJobDetails(scraped, fallbackTab = null, force = false) {
   if (!force && currentEvaluatedJobId === jobId && activeJobData && Math.abs(descLen - lastEvaluatedDescLen) < 100) {
     return;
   }
-  currentEvaluatedJobId = jobId;
-  lastEvaluatedDescLen = descLen;
+
+  const thisSeq = ++latestEvaluationSequence;
 
   if (currentSidepanelAbortController) {
     currentSidepanelAbortController.abort();
@@ -431,12 +432,19 @@ async function evaluateJobDetails(scraped, fallbackTab = null, force = false) {
     }
 
     const data = await res.json();
+
+    // Guard: Only render if this request is still the most recent one!
+    if (thisSeq !== latestEvaluationSequence) {
+      return;
+    }
+
+    currentEvaluatedJobId = jobId;
+    lastEvaluatedDescLen = descLen;
     renderVerdict(data, scraped);
     chrome.storage.local.set({ activeJobEvaluation: { data, scraped } }).catch(() => {});
   } catch (err) {
-    if (err.name === 'AbortError') return;
+    if (err.name === 'AbortError' || thisSeq !== latestEvaluationSequence) return;
     console.error('Scan error:', err);
-    // Show explicit error state instead of fake hardcoded verdict
     const errorMsg = err.message?.includes('Failed to fetch') || err.message?.includes('NetworkError')
       ? 'Backend server is unreachable. Start the server with npm run server'
       : `Evaluation failed: ${err.message || 'Unknown error'}`;
@@ -447,17 +455,22 @@ async function evaluateJobDetails(scraped, fallbackTab = null, force = false) {
 // ── Tab Evaluation Execution ──
 async function evaluateCurrentTab(force = false) {
   const tab = await getActiveTab();
-  if (!tab || !tab.id || tab.url?.startsWith('chrome://')) return;
+  if (!tab || !tab.id || tab.url?.startsWith('chrome://') || tab.url?.startsWith('chrome-extension://')) return;
 
   if (force) {
     currentEvaluatedJobId = null;
     activeJobData = null;
+    showLoadingSkeleton(tab.title ? tab.title.split(/ [|\-–—] /)[0].trim() : 'Scanning Job...', '');
   }
 
   // Request scraped details from the canonical content script
   let scraped = null;
   try {
     const response = await chrome.tabs.sendMessage(tab.id, { type: 'GET_ACTIVE_JOB_DETAILS' });
+    if (response && response.isTransitioning) {
+      showLoadingSkeleton(response.title || 'Arbitrating Fit...', response.company || '');
+      return;
+    }
     if (response && (response.title || response.description)) {
       scraped = { ...response, url: tab.url || '' };
     }
@@ -470,6 +483,10 @@ async function evaluateCurrentTab(force = false) {
           files: ['content.js']
         });
         const retry = await chrome.tabs.sendMessage(tab.id, { type: 'GET_ACTIVE_JOB_DETAILS' });
+        if (retry && retry.isTransitioning) {
+          showLoadingSkeleton(retry.title || 'Arbitrating Fit...', retry.company || '');
+          return;
+        }
         if (retry && (retry.title || retry.description)) {
           scraped = { ...retry, url: tab.url || '' };
         }
@@ -572,6 +589,17 @@ function checkAndAutoScanTab(tab) {
   if (!tab || !tab.url || tab.url.startsWith('chrome://') || tab.url.startsWith('chrome-extension://')) return;
   if (tab.url !== lastEvaluatedTabUrl) {
     lastEvaluatedTabUrl = tab.url;
+    latestEvaluationSequence++;
+    if (currentSidepanelAbortController) {
+      currentSidepanelAbortController.abort();
+    }
+    const titleClean = tab.title ? tab.title.split(/ [|\-–—] /)[0].trim() : 'Arbitrating Fit...';
+    let companyName = '';
+    try {
+      companyName = new URL(tab.url).hostname.replace(/^www\./, '').split('.')[0];
+      companyName = companyName.charAt(0).toUpperCase() + companyName.slice(1);
+    } catch {}
+    showLoadingSkeleton(titleClean, companyName);
     evaluateCurrentTab(true);
   }
 }
@@ -769,19 +797,26 @@ async function init() {
 
   // Check Storage on Boot
   try {
-    const { activeJobEvaluation } = await chrome.storage.local.get(['activeJobEvaluation']);
     const tab = await getActiveTab();
+    const { activeJobEvaluation } = await chrome.storage.local.get(['activeJobEvaluation']);
     if (activeJobEvaluation?.data && activeJobEvaluation?.scraped) {
       if (tab?.url && activeJobEvaluation.scraped.url === tab.url) {
+        activeJobData = activeJobEvaluation;
+        currentEvaluatedJobId = activeJobEvaluation.scraped.jobId;
+        lastEvaluatedDescLen = (activeJobEvaluation.scraped.description || '').length;
         renderVerdict(activeJobEvaluation.data, activeJobEvaluation.scraped);
+      } else {
+        // Tab is different from cached evaluation: show skeleton immediately, do NOT flash old job
+        const cleanTitle = tab?.title ? tab.title.split(/ [|\-–—] /)[0].trim() : 'Arbitrating Fit...';
+        showLoadingSkeleton(cleanTitle, '');
       }
     }
     // Always trigger fresh evaluation for the current tab
     if (tab && tab.url && !tab.url.startsWith('chrome://') && !tab.url.startsWith('chrome-extension://')) {
-      setTimeout(() => evaluateCurrentTab(true), 100);
+      setTimeout(() => evaluateCurrentTab(true), 80);
     }
   } catch {
-    setTimeout(() => evaluateCurrentTab(true), 150);
+    setTimeout(() => evaluateCurrentTab(true), 120);
   }
 
   // Automatic Scanning on Tab Switch or Navigation
@@ -800,8 +835,16 @@ async function init() {
     }
   });
 
-  // Listen for evaluations broadcast from content script
+  // Listen for evaluations and loading signals broadcast from content script
   chrome.runtime.onMessage?.addListener((message) => {
+    if (message.type === 'JOB_CLICKED_LOADING') {
+      latestEvaluationSequence++;
+      if (currentSidepanelAbortController) {
+        currentSidepanelAbortController.abort();
+      }
+      showLoadingSkeleton(message.title || 'Arbitrating Fit...', message.company || '');
+      return;
+    }
     if (message.type === 'JOB_CONTEXT_UPDATED' && message.details) {
       evaluateJobDetails(message.details, null, true);
     }
