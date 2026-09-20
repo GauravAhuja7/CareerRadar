@@ -45,7 +45,7 @@ export const INITIAL_JOBS: JobListing[] = [
     postedDaysAgo: 3,
     repostCount: 0,
     applicantCount: 28,
-    hiringManager: 'Elena Rostova (VP of Engineering — Active)',
+    hiringManager: 'Elena Rostova (VP of Engineering - Active)',
     experienceScope: 'Senior IC with proven experience designing high-throughput web architectures and reactive client state',
     autonomyLevel: 'Autonomous IC',
     coreMission: 'Own full-stack model orchestration infrastructure. You will architect low-latency client interfaces and high-concurrency Node/TypeScript pipelines connecting to inference clusters.',
@@ -118,7 +118,7 @@ export const PERSONAS: Record<string, CandidateResume> = {
     autonomyTrackRecord: 'Operated as autonomous technical owner across 3 mission-critical product launches. Authored RFCs for client state management and API contracts. Regularly mentored 3 junior engineers and established automated integration testing suites.',
     primaryTechnicalDomains: ['Modern Web Architecture (React, TypeScript)', 'High-Throughput Backend APIs (Node.js, PostgreSQL)', 'Distributed Caching & Async Pipelines', 'Component Design Systems & Performance'],
     fullResumeText: `
-Alex Chen — Senior Full-Stack Engineer (5.5 years experience)
+Alex Chen - Senior Full-Stack Engineer (5.5 years experience)
 Summary: Systems-minded product engineer with 5.5 years of experience building resilient, low-latency web platforms. Deep experience in TypeScript, React, Node.js, distributed state, and cloud databases.
 Experience:
 - Senior Full-Stack Engineer at FinTrack Labs (2023 - Present): Owned full-stack feature architecture for real-time market data dashboard used by 120k traders. Re-engineered core web socket streaming layer, reducing client memory footprint by 35%. Mentored engineers on clean architecture.
@@ -138,7 +138,7 @@ Education: B.S. in Computer Science, UC Berkeley.
     autonomyTrackRecord: 'Cross-organizational technical leader setting company-wide infrastructure roadmaps and disaster recovery standards. Served as Incident Commander for Tier-0 production outages. Established automated IaC deployment pipelines using Terraform.',
     primaryTechnicalDomains: ['Kubernetes Orchestration & Service Meshes', 'Distributed Systems Reliability & Consensus', 'Cloud Infrastructure as Code (Terraform, AWS/GCP)', 'Systems Observability & Telemetry (Prometheus, eBPF)'],
     fullResumeText: `
-Maya Patel — Staff Infrastructure Engineer (8 years experience)
+Maya Patel - Staff Infrastructure Engineer (8 years experience)
 Summary: Platform engineer specialized in large-scale distributed systems, multi-region Kubernetes, cloud reliability, and infrastructure automation.
 Experience:
 - Staff Infrastructure Engineer at DataMesh (2022 - Present): Architectural owner of global compute platform spanning 4 regions and 4,500+ pods. Designed automated zero-downtime cluster upgrade system. Reduced infrastructure cost by $1.2M.
@@ -158,7 +158,7 @@ Education: M.S. in Computer Engineering, Georgia Tech.
     autonomyTrackRecord: 'Executes defined engineering tasks with diligence. Actively seeks code review feedback, pair programs with senior engineers, and writes clean component tests.',
     primaryTechnicalDomains: ['React & Next.js UI Development', 'CSS, Tailwind & Responsive Layouts', 'Client Form Validation & REST APIs', 'Git Workflows & Modern Frontend Tooling'],
     fullResumeText: `
-Jordan Lee — Junior Frontend Developer (1.5 years experience)
+Jordan Lee - Junior Frontend Developer (1.5 years experience)
 Summary: Frontend developer with 1.5 years experience building clean, responsive web user interfaces with React, JavaScript, and Tailwind CSS.
 Experience:
 - Associate Frontend Developer at Digital Craft Agency (2024 - Present): Developed interactive client marketing websites and dashboards. Implemented reusable component libraries and accessible UI forms.
@@ -177,7 +177,7 @@ Education: Full-Stack Web Development Certificate + B.A. in Psychology.
     autonomyTrackRecord: 'Operates with high autonomy on complex distributed systems, achieving 99.9% sync reliability and 40% P95 latency reduction.',
     primaryTechnicalDomains: ['Distributed Backend & Kafka Pipelines', 'Cloud Infrastructure & DevOps (AWS, K8s, IaC)', 'Observability & Telemetry (Prometheus, Grafana)', 'High-Concurrency APIs & Real-Time WebSockets', 'Systems Automation (Python/Go)'],
     fullResumeText: `
-Gaurav Ahuja — Backend & Systems Engineer (1.5 years experience)
+Gaurav Ahuja - Backend & Systems Engineer (1.5 years experience)
 Education: B.Tech in Computer Science and Engineering, Indian Institute of Technology Mandi (IIT Mandi).
 Summary: High-velocity backend and systems engineer with production experience in distributed event pipelines, Linux systems, observability, AWS cloud infrastructure, and systems automation.
 Technical Skills:
@@ -834,7 +834,7 @@ export function analyzeCompetencies(
     // Only evaluate evidence for skills ACTUALLY DEMANDED by the job (jobHits > 0)
     for (const { comp, jobHits, candHits } of selected) {
       if (jobHits === 0) {
-        // Job NEVER asked for this skill — NEVER claim it is a gap or a required match!
+        // Job NEVER asked for this skill: NEVER claim it is a gap or a required match!
         continue;
       }
 
@@ -1039,30 +1039,30 @@ app.post('/api/scan-job', async (req, res) => {
         decision_verdict: choice(
           'What is the tactical application recommendation for this candidate regarding this specific job opportunity?',
           {
-            can_apply: 'Strong fit — candidate background, qualifications, and core deliverables align well with role expectations; high probability of landing interview',
-            reach_apply: 'Strategic reach — candidate is in the right professional discipline but is slightly below the formal years requirement; proven deliverables make them a viable applicant',
-            experience_mismatch: 'Seniority mismatch — candidate is in the correct discipline but the role mandates significantly higher (or lower) seniority with hard tenure filters',
-            skill_mismatch: 'Discipline or field mismatch — role is in a completely different professional discipline (e.g. software engineer applying for HR, marketing, or finance) or requires non-transferable domain credentials'
+            can_apply: 'Strong fit: candidate background, qualifications, and core deliverables align well with role expectations; high probability of landing interview',
+            reach_apply: 'Strategic reach: candidate is in the right professional discipline but is slightly below the formal years requirement; proven deliverables make them a viable applicant',
+            experience_mismatch: 'Seniority mismatch: candidate is in the correct discipline but the role mandates significantly higher (or lower) seniority with hard tenure filters',
+            skill_mismatch: 'Discipline or field mismatch: role is in a completely different professional discipline (e.g. software engineer applying for HR, marketing, or finance) or requires non-transferable domain credentials'
           }
         ),
         technical_match_score: score(
           'Rate the functional and domain competency match between what this candidate brings and what the role demands.',
           [
             'Complete mismatch in professional discipline or problem domain',
-            'Minimal overlap — requires fundamental domain retraining',
-            'Moderate overlap — transferable skills exist, but candidate lacks specialized core experience',
-            'High competency alignment — candidate has solved the exact category of domain challenges',
-            'Flawless synergy — immediate production contribution on day one'
+            'Minimal overlap: requires fundamental domain retraining',
+            'Moderate overlap: transferable skills exist, but candidate lacks specialized core experience',
+            'High competency alignment: candidate has solved the exact category of domain challenges',
+            'Flawless synergy: immediate production contribution on day one'
           ]
         ),
         experience_feasibility: score(
           'Evaluate how feasibly the candidate meets the seniority and experience expectations.',
           [
-            'Impassable gap — company auto-rejects due to hard senior tenure filters or discipline barrier',
-            'Steep gap — candidate would struggle with team autonomy expectations at this level',
-            'Manageable stretch — candidate compensates for slight tenure deficit with strong proven deliverables',
-            'Negligible gap — demonstrated scale fully offsets calendar differences',
-            'Zero gap — candidate operates at or above the role requirements'
+            'Impassable gap: company auto-rejects due to hard senior tenure filters or discipline barrier',
+            'Steep gap: candidate would struggle with team autonomy expectations at this level',
+            'Manageable stretch: candidate compensates for slight tenure deficit with strong proven deliverables',
+            'Negligible gap: demonstrated scale fully offsets calendar differences',
+            'Zero gap: candidate operates at or above the role requirements'
           ]
         ),
         interview_probability: noul(

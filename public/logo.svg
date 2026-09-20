@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" fill="none">
+  <defs>
+    <linearGradient id="cr-bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#18181b"/>
+      <stop offset="100%" stop-color="#09090b"/>
+    </linearGradient>
+    <linearGradient id="cr-emerald" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#34d399"/>
+      <stop offset="100%" stop-color="#059669"/>
+    </linearGradient>
+    <radialGradient id="cr-glow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#10b981" stop-opacity="0.35"/>
+      <stop offset="70%" stop-color="#10b981" stop-opacity="0.05"/>
+      <stop offset="100%" stop-color="#10b981" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <!-- Dark Rounded Container -->
+  <rect x="8" y="8" width="184" height="184" rx="44" fill="url(#cr-bg)" stroke="#27272a" stroke-width="3"/>
+
+  <!-- Radar Glow -->
+  <circle cx="100" cy="100" r="75" fill="url(#cr-glow)"/>
+
+  <!-- Outer Ring -->
+  <circle cx="100" cy="100" r="70" stroke="#27272a" stroke-width="2" stroke-dasharray="4 6"/>
+
+  <!-- Mid Ring -->
+  <circle cx="100" cy="100" r="48" stroke="#3f3f46" stroke-width="2.5"/>
+
+  <!-- Inner Ring -->
+  <circle cx="100" cy="100" r="26" stroke="#10b981" stroke-width="2.5" stroke-opacity="0.8"/>
+
+  <!-- Radar Crosshairs (Precision Reticle) -->
+  <line x1="100" y1="20" x2="100" y2="40" stroke="#71717a" stroke-width="2.5" stroke-linecap="round"/>
+  <line x1="100" y1="160" x2="100" y2="180" stroke="#71717a" stroke-width="2.5" stroke-linecap="round"/>
+  <line x1="20" y1="100" x2="40" y2="100" stroke="#71717a" stroke-width="2.5" stroke-linecap="round"/>
+  <line x1="160" y1="100" x2="180" y2="100" stroke="#71717a" stroke-width="2.5" stroke-linecap="round"/>
+
+  <!-- Dynamic Radar Sweep Beam (45 deg) -->
+  <path d="M100 100 L145 55" stroke="url(#cr-emerald)" stroke-width="3" stroke-linecap="round"/>
+
+  <!-- Detected Target Lock Blip -->
+  <circle cx="145" cy="55" r="7" fill="#34d399"/>
+  <circle cx="145" cy="55" r="13" stroke="#34d399" stroke-width="2" stroke-opacity="0.5"/>
+
+  <!-- Center Core -->
+  <circle cx="100" cy="100" r="6" fill="#ffffff"/>
+  <circle cx="100" cy="100" r="10" stroke="#10b981" stroke-width="2"/>
+</svg>

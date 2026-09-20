@@ -1,4 +1,4 @@
-// CareerRadar Side Panel Script (Manifest V3) — Developer-Grade Decision Engine
+// CareerRadar Side Panel Script (Manifest V3) - Developer-Grade Decision Engine
 const BACKEND_URL = 'http://localhost:3001';
 
 let currentSidepanelAbortController = null;
@@ -133,7 +133,7 @@ function renderErrorState(errorMessage = 'Backend server is unreachable') {
   if (headlineEl) headlineEl.innerText = 'OFFLINE';
   if (subtextEl) subtextEl.innerText = errorMessage + '. Click refresh (⌘R) to retry.';
   if (statusBadgeEl) statusBadgeEl.innerText = 'UNAVAILABLE';
-  if (gaugePercent) gaugePercent.innerText = '—';
+  if (gaugePercent) gaugePercent.innerText = '-';
   if (gaugeCircle) {
     gaugeCircle.style.strokeDashoffset = '201.06'; // fully empty
   }
@@ -146,11 +146,11 @@ function renderErrorState(errorMessage = 'Backend server is unreachable') {
   const oddsMetricVal = document.getElementById('metric-screen-odds');
   const oddsMetricBar = document.getElementById('metric-odds-bar');
 
-  if (fitMetricVal) fitMetricVal.innerText = '—';
+  if (fitMetricVal) fitMetricVal.innerText = '-';
   if (fitMetricBar) fitMetricBar.style.width = '0%';
-  if (sysMetricVal) sysMetricVal.innerText = '—';
+  if (sysMetricVal) sysMetricVal.innerText = '-';
   if (sysMetricBar) sysMetricBar.style.width = '0%';
-  if (oddsMetricVal) oddsMetricVal.innerText = '—';
+  if (oddsMetricVal) oddsMetricVal.innerText = '-';
   if (oddsMetricBar) oddsMetricBar.style.width = '0%';
 
   // Clear evidence and tech alignment
@@ -323,8 +323,8 @@ function renderVerdict(data, scraped) {
 
   const expComp = data.experienceComparison || {};
 
-  if (expReqDisplay) expReqDisplay.innerText = expComp.required || '—';
-  if (expCandDisplay) expCandDisplay.innerText = expComp.candidate || '—';
+  if (expReqDisplay) expReqDisplay.innerText = expComp.required || '-';
+  if (expCandDisplay) expCandDisplay.innerText = expComp.candidate || '-';
   if (expTypeBadge) expTypeBadge.innerText = expComp.evaluationType || 'Scope-Based';
   if (expNoteDisplay) {
     // L6 fix: use expScore as a subtle calibration indicator
@@ -346,14 +346,14 @@ function renderVerdict(data, scraped) {
     `).join('');
   }
 
-  // 7. Dynamic Reasoning Drawer Content (C3 fix — no more hardcoded text)
+  // 7. Dynamic Reasoning Drawer Content (C3 fix: no more hardcoded text)
   const deepRationale = document.getElementById('drawer-deep-rationale');
   const interviewPitch = document.getElementById('drawer-interview-pitch');
   const probsList = document.getElementById('drawer-probabilities-list');
   const footerTelemetry = document.getElementById('footer-telemetry');
 
   if (footerTelemetry) {
-    footerTelemetry.innerText = `Analyzed in ${data.ms || '—'}ms`;
+    footerTelemetry.innerText = `Analyzed in ${data.ms || '-'}ms`;
   }
 
   if (deepRationale) {

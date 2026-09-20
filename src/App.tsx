@@ -36,9 +36,12 @@ export function App() {
             </span>
           </div>
 
-          <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-white">
-            CareerRadar
-          </h1>
+          <div className="flex items-center gap-3">
+            <img src="/logo.svg" alt="CareerRadar Logo" className="w-10 h-10 rounded-xl" />
+            <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-white">
+              CareerRadar
+            </h1>
+          </div>
           <p className="text-zinc-400 text-sm sm:text-base leading-relaxed">
             Developer-grade Chrome Extension for real-time job calibration, ATS evaluation, and candidate alignment.
           </p>

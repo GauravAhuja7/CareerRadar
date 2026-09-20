@@ -2,7 +2,7 @@
 // Pure headless context observer & job extractor for Chrome Side Panel
 // ZERO DOM INJECTION: No floating tabs, no in-page drawers, no layout shift.
 // ZERO API CALLS: Content script only scrapes and broadcasts. Sidepanel evaluates.
-console.log('🎯 CareerRadar Active — Headless Job Context Observer.');
+console.log('🎯 CareerRadar Active: Headless Job Context Observer.');
 
 // Internal State Machine
 let activeJobId = null;
@@ -143,7 +143,7 @@ function getActiveJobIdFromPage() {
   }
 }
 
-// ── Robust Job Details Extractor (Canonical — sidepanel delegates to this) ──
+// ── Robust Job Details Extractor (Canonical: sidepanel delegates to this) ──
 function extractActiveJobDetails() {
   const host = window.location.hostname.toLowerCase();
   const url = window.location.href.toLowerCase();
@@ -326,7 +326,7 @@ function broadcastJobContext() {
   lastBroadcastedJobId = jobId;
   lastBroadcastedDescLength = descLen;
 
-  // Notify side panel with verified scraped data — sidepanel handles the API call ONCE
+  // Notify side panel with verified scraped data: sidepanel handles the API call ONCE
   safeSendMessage({
     type: 'JOB_CONTEXT_UPDATED',
     details,
