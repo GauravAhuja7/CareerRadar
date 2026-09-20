@@ -4,6 +4,7 @@ const BACKEND_URL = 'http://localhost:3001';
 let currentSidepanelAbortController = null;
 let lastEvaluatedTabUrl = '';
 let activeJobData = null;
+let lastGeneratedPitch = '';
 
 function showLoadingSkeleton(title = '', company = '') {
   const verdictContainer = document.getElementById('verdict-container');
@@ -95,131 +96,123 @@ function updateProfileBarUI(metadata, candidate) {
   const nameLine = document.getElementById('profile-name-line');
   const subLine = document.getElementById('profile-sub-line');
 
-  let fullName = candidate?.name || 'Gaurav';
-  if (!fullName || /indian|institute|college|university|custom profile|candidate/i.test(fullName)) {
-    fullName = 'Gaurav';
+  let fullName = candidate?.name || 'Candidate';
+  if (!fullName || /indian|institute|college|university|custom profile/i.test(fullName)) {
+    fullName = 'Candidate';
   }
 
-  const firstName = fullName.split(' ')[0];
-  const initials = fullName.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() || 'GA';
-  const expYears = metadata?.calculatedYears ?? candidate?.experienceYears ?? 1.5;
-  const targetRole = candidate?.targetRole && !/engineer|custom/i.test(candidate.targetRole)
-    ? candidate.targetRole.split(' ')[0]
-    : 'Backend & Systems';
-  const college = metadata?.college ? metadata.college.replace('Indian Institute of Technology, ', 'IIT ') : 'IIT Mandi';
+  const firstName = fullName.split(' ')[0] || 'You';
+  const initials = fullName !== 'Candidate'
+    ? fullName.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
+    : 'CR';
+  const expYears = metadata?.calculatedYears ?? candidate?.experienceYears ?? 0;
+  const targetRole = candidate?.targetRole || 'Software Systems Engineer';
+  const college = metadata?.college ? metadata.college.replace('Indian Institute of Technology, ', 'IIT ') : '';
 
   if (avatar) avatar.childNodes[0].nodeValue = initials + ' ';
   if (nameLine) nameLine.innerText = `${firstName} · ${expYears} yrs · ${targetRole}`;
-  if (subLine) subLine.innerText = `${college} · Open to opportunities`;
+  if (subLine) subLine.innerText = college ? `${college} · Open to opportunities` : 'Calibrated Profile · Ready to evaluate';
 }
 
-// ── In-Page Scraper Function (Injected into active tab) ──
-function scrapeJobDetailsFromPage() {
-  const host = window.location.hostname.toLowerCase();
-  const url = window.location.href.toLowerCase();
+// ── Render Error/Offline State in Side Panel ──
+function renderErrorState(errorMessage = 'Backend server is unreachable') {
+  hideLoadingSkeleton();
 
-  let title = '';
-  let company = '';
-  let location = '';
-  let description = '';
-
-  const detailPane = document.querySelector(
-    '.jobs-search__job-details, .scaffold-layout__detail, .job-view-layout, .jobs-details, [data-view-name="job-details-component"], .jobsearch-JobComponent, .gc-job-detail, main, article'
-  );
-
-  // 1. LinkedIn
-  if (host.includes('linkedin.com')) {
-    title = (detailPane || document).querySelector(
-      '.job-details-jobs-unified-top-card__job-title, .jobs-unified-top-card__job-title, h1.job-details-jobs-unified-top-card__job-title, h2.job-details-jobs-unified-top-card__job-title, h1.t-24, h2.t-24, [data-view-name="job-details-top-card"] h1, [data-view-name="job-details-top-card"] h2, .jobs-details__top-card h1, .jobs-details__top-card h2, h1'
-    )?.innerText?.trim() || '';
-
-    if (!title) {
-      const activeCard = document.querySelector(
-        '.jobs-search-results-list__list-item--active, [data-occludable-job-id].active'
-      );
-      title = activeCard?.querySelector(
-        '.job-card-list__title--link, .job-card-list__title, .artdeco-entity-lockup__title, strong, h3'
-      )?.innerText?.trim() || '';
-    }
-
-    company = (detailPane || document).querySelector(
-      '.job-details-jobs-unified-top-card__company-name, .jobs-unified-top-card__company-name, [data-anonymize="company-name"], a.ember-view.t-black--light, .job-details-jobs-unified-top-card a[href*="/company/"]'
-    )?.innerText?.trim() || '';
-
-    if (!company) {
-      const activeCard = document.querySelector(
-        '.jobs-search-results-list__list-item--active, [data-occludable-job-id].active'
-      );
-      company = activeCard?.querySelector(
-        '.job-card-container__primary-description, .artdeco-entity-lockup__subtitle'
-      )?.innerText?.trim() || '';
-    }
-
-    location = (detailPane || document).querySelector(
-      '.job-details-jobs-unified-top-card__bullet, .jobs-unified-top-card__bullet, .jobs-unified-top-card__workplace-type'
-    )?.innerText?.trim() || 'Detected Listing';
-
-    const descEl = (detailPane || document).querySelector(
-      '#job-details, .jobs-description__content, .jobs-description-content__text, [data-view-name="job-details-component"], .jobs-box__html-content, article.jobs-description__container, article'
-    );
-    description = descEl?.innerText?.trim() || '';
-  }
-  // 2. Google Careers
-  else if (host.includes('google.com') && (url.includes('/careers') || url.includes('/jobs') || url.includes('google.com/about/careers'))) {
-    title = document.querySelector('h1, h2.title, [role="heading"][aria-level="1"], .gc-job-detail__title, .headline-4')?.innerText?.trim() || '';
-    company = 'Google';
-    const locEl = document.querySelector('[aria-label*="Location"], .gc-job-detail__meta, .gc-job-location, [aria-label*="location"]');
-    if (locEl) {
-      location = locEl.innerText.replace(/corporate_fare|place|pin_drop/gi, '').replace(/\s+/g, ' ').trim();
-    }
-    if (!location) location = 'Hyderabad / Global';
-    const descEl = document.querySelector('[aria-label="Job details"], .gc-job-detail, main, article');
-    description = descEl?.innerText?.trim() || '';
-  }
-  // 3. Indeed
-  else if (host.includes('indeed.com')) {
-    title = document.querySelector('h2.jobTitle, .jobsearch-JobInfoHeader-title, h1')?.innerText?.trim() || '';
-    company = document.querySelector('[data-testid="inlineHeader-companyName"], .companyName')?.innerText?.trim() || '';
-    location = document.querySelector('[data-testid="inlineHeader-companyLocation"]')?.innerText?.trim() || '';
-    const descEl = document.querySelector('#jobDescriptionText, .jobsearch-JobComponent-description');
-    description = descEl?.innerText?.trim() || '';
-  }
-  // 4. Wellfound / AngelList
-  else if (host.includes('wellfound.com') || host.includes('angel.co')) {
-    title = document.querySelector('h1, h2, [data-test="JobTitle"]')?.innerText?.trim() || '';
-    company = document.querySelector('[data-test="StartupName"], h3')?.innerText?.trim() || '';
-    const descEl = document.querySelector('[data-test="JobDescription"], main, article');
-    description = descEl?.innerText?.trim() || '';
-  }
-  // 5. Y Combinator
-  else if (host.includes('workatastartup.com')) {
-    title = document.querySelector('.job-name, h1, h2')?.innerText?.trim() || '';
-    company = document.querySelector('.company-name, .company-title')?.innerText?.trim() || '';
-    const descEl = document.querySelector('.job-description, main');
-    description = descEl?.innerText?.trim() || '';
-  }
-  // 6. Generic ATS / Company Career Portals
-  else {
-    title = document.querySelector('h1.app-title, h1.job-title, h1[class*="title"], h1, [data-automation-id="jobPostingHeader"]')?.innerText?.trim() || '';
-    company = document.querySelector('.company-name, [class*="company"], [data-automation-id="companyName"]')?.innerText?.trim() || '';
-    const descEl = document.querySelector('#content, .description, [class*="description"], [data-automation-id="jobPostingDescription"], main, article');
-    description = descEl?.innerText?.trim() || '';
+  const verdictContainer = document.getElementById('verdict-container');
+  if (verdictContainer) {
+    verdictContainer.style.display = 'block';
+    verdictContainer.className = 'cr-verdict-box verdict-error';
   }
 
-  // Fallback to page title if scraping was sparse
-  if (!title) {
-    const raw = document.title || '';
-    title = raw.split(/ [|\-–—:] /)[0].trim() || 'Software Engineer';
-  }
-  if (!company) {
-    company = window.location.hostname.replace(/^www\./, '').split('.')[0];
-    company = company.charAt(0).toUpperCase() + company.slice(1);
-  }
-  if (!description) {
-    description = document.body.innerText.slice(0, 3000);
+  const headlineEl = document.getElementById('verdict-headline');
+  const subtextEl = document.getElementById('verdict-subtext');
+  const statusBadgeEl = document.getElementById('verdict-status-badge');
+  const gaugePercent = document.getElementById('gauge-percent-text');
+  const gaugeCircle = document.getElementById('gauge-bar-circle');
+
+  if (headlineEl) headlineEl.innerText = 'OFFLINE';
+  if (subtextEl) subtextEl.innerText = errorMessage + '. Click refresh (⌘R) to retry.';
+  if (statusBadgeEl) statusBadgeEl.innerText = 'UNAVAILABLE';
+  if (gaugePercent) gaugePercent.innerText = '—';
+  if (gaugeCircle) {
+    gaugeCircle.style.strokeDashoffset = '201.06'; // fully empty
   }
 
-  return { title, company, location, description, url: window.location.href };
+  // Clear metrics
+  const fitMetricVal = document.getElementById('metric-fit-score');
+  const fitMetricBar = document.getElementById('metric-fit-bar');
+  const sysMetricVal = document.getElementById('metric-systems-score');
+  const sysMetricBar = document.getElementById('metric-systems-bar');
+  const oddsMetricVal = document.getElementById('metric-screen-odds');
+  const oddsMetricBar = document.getElementById('metric-odds-bar');
+
+  if (fitMetricVal) fitMetricVal.innerText = '—';
+  if (fitMetricBar) fitMetricBar.style.width = '0%';
+  if (sysMetricVal) sysMetricVal.innerText = '—';
+  if (sysMetricBar) sysMetricBar.style.width = '0%';
+  if (oddsMetricVal) oddsMetricVal.innerText = '—';
+  if (oddsMetricBar) oddsMetricBar.style.width = '0%';
+
+  // Clear evidence and tech alignment
+  const evidenceList = document.getElementById('evidence-list');
+  if (evidenceList) {
+    evidenceList.innerHTML = `
+      <div class="cr-evidence-item">
+        <div class="cr-evidence-left">
+          <svg class="cr-evidence-icon icon-mismatch" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="12" y1="8" x2="12" y2="12"/>
+            <line x1="12" y1="16" x2="12.01" y2="16"/>
+          </svg>
+          <span class="cr-evidence-text">Could not connect to evaluation server</span>
+        </div>
+        <span class="cr-evidence-tag tag-mismatch">Offline</span>
+      </div>
+    `;
+  }
+
+  const techList = document.getElementById('technical-alignment-list');
+  if (techList) techList.innerHTML = '';
+
+  lastGeneratedPitch = '';
+}
+
+// ── Build Dynamic Rationale from Actual API Data ──
+function buildDynamicRationale(data, scraped, headline, expComp) {
+  const evidence = data.evidence || [];
+  const strongSkills = evidence.filter(e => e.status === 'strong').map(e => e.text);
+  const goodSkills = evidence.filter(e => e.status === 'good').map(e => e.text);
+  const stretches = evidence.filter(e => e.status === 'stretch' || e.status === 'mismatch').map(e => e.text);
+
+  let rationale = '';
+  if (strongSkills.length > 0) {
+    rationale += `Candidate demonstrates strong alignment in ${strongSkills.slice(0, 3).join(', ')}. `;
+  }
+  if (goodSkills.length > 0) {
+    rationale += `Good coverage in ${goodSkills.slice(0, 2).join(' and ')}. `;
+  }
+  if (expComp && expComp.required) {
+    rationale += `Experience requirement: ${expComp.required} (candidate: ${expComp.candidate || 'N/A'}). `;
+  }
+  if (stretches.length > 0) {
+    rationale += `Areas to address: ${stretches.slice(0, 2).join('; ')}. `;
+  }
+  rationale += `Verdict: ${headline}.`;
+
+  return rationale || `Evaluation completed for ${scraped?.title || 'this role'} at ${scraped?.company || 'this company'}. Verdict: ${headline}.`;
+}
+
+// ── Build Dynamic Interview Pitch from Actual Match Data ──
+function buildDynamicPitch(data, scraped) {
+  const evidence = data.evidence || [];
+  const strongSkills = evidence.filter(e => e.status === 'strong' || e.status === 'good').map(e => e.text);
+
+  if (strongSkills.length === 0) {
+    return `"My engineering background aligns with the ${scraped?.title || 'role'} requirements at ${scraped?.company || 'your company'}, and I'm eager to contribute production value from day one."`;
+  }
+
+  const topSkills = strongSkills.slice(0, 3).join(', ');
+  return `"I've built and delivered production systems in ${topSkills}, which directly maps to the ${scraped?.title || 'role'} requirements. I'm positioned to contribute immediate value to ${scraped?.company || 'the team'}."`;
 }
 
 // ── Render Verdict in Side Panel ──
@@ -265,7 +258,7 @@ function renderVerdict(data, scraped) {
   }
 
   // 2. Circular Gauge
-  const fitScore = data.matchPercentage || 62;
+  const fitScore = data.matchPercentage ?? 0;
   const gaugePercent = document.getElementById('gauge-percent-text');
   const gaugeCircle = document.getElementById('gauge-bar-circle');
   if (gaugePercent) gaugePercent.innerText = `${fitScore}%`;
@@ -286,26 +279,18 @@ function renderVerdict(data, scraped) {
   if (fitMetricVal) fitMetricVal.innerText = `${fitScore}%`;
   if (fitMetricBar) fitMetricBar.style.width = `${fitScore}%`;
 
-  const techScore = data.techScore !== undefined ? data.techScore : 2.9;
+  const techScore = data.techScore !== undefined ? data.techScore : 0;
   if (sysMetricVal) sysMetricVal.innerText = techScore.toFixed(1);
   if (sysMetricBar) sysMetricBar.style.width = `${Math.min(100, (techScore / 4) * 100)}%`;
 
-  const screenOdds = data.interviewOdds !== undefined ? Math.round(data.interviewOdds * 100) : 54;
+  const screenOdds = data.interviewOdds !== undefined ? Math.round(data.interviewOdds * 100) : 0;
   if (oddsMetricVal) oddsMetricVal.innerText = `${screenOdds}%`;
   if (oddsMetricBar) oddsMetricBar.style.width = `${screenOdds}%`;
 
   // 4. Evidence Rows ("Why this verdict")
   const evidenceList = document.getElementById('evidence-list');
-  if (evidenceList) {
-    const evidenceItems = data.evidence && data.evidence.length ? data.evidence : [
-      { text: 'Kafka / Event-driven systems', tag: 'Strong match', status: 'strong' },
-      { text: 'AWS cloud architecture & services', tag: 'Strong match', status: 'strong' },
-      { text: 'Backend engineering (Java, Spring Boot, etc.)', tag: 'Good match', status: 'good' },
-      { text: 'AI/ML experience (relevant projects)', tag: 'Good match', status: 'good' },
-      { text: `Less formal experience (1.5 yrs vs 3–5 yrs)`, tag: 'Manageable stretch', status: 'stretch', isStretch: true }
-    ];
-
-    evidenceList.innerHTML = evidenceItems.map(item => {
+  if (evidenceList && data.evidence && data.evidence.length) {
+    evidenceList.innerHTML = data.evidence.map(item => {
       const isCheck = item.status === 'strong' || item.status === 'good';
       const iconSvg = isCheck
         ? `<svg class="cr-evidence-icon icon-${item.status}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -336,29 +321,21 @@ function renderVerdict(data, scraped) {
   const expTypeBadge = document.getElementById('exp-eval-type-badge');
   const expNoteDisplay = document.getElementById('exp-note-display');
 
-  const expComp = data.experienceComparison || {
-    required: '3 – 5 yrs',
-    candidate: '1.5 yrs',
-    evaluationType: 'Scope-Based',
-    note: 'Scope-based evaluation · Manageable stretch'
-  };
+  const expComp = data.experienceComparison || {};
 
-  if (expReqDisplay) expReqDisplay.innerText = expComp.required;
-  if (expCandDisplay) expCandDisplay.innerText = expComp.candidate;
+  if (expReqDisplay) expReqDisplay.innerText = expComp.required || '—';
+  if (expCandDisplay) expCandDisplay.innerText = expComp.candidate || '—';
   if (expTypeBadge) expTypeBadge.innerText = expComp.evaluationType || 'Scope-Based';
-  if (expNoteDisplay) expNoteDisplay.innerText = expComp.note;
+  if (expNoteDisplay) {
+    // L6 fix: use expScore as a subtle calibration indicator
+    const scoreText = data.expScore !== undefined ? ` · Alignment: ${data.expScore}/4` : '';
+    expNoteDisplay.innerText = (expComp.note || '') + scoreText;
+  }
 
   // 6. Technical Alignment Bars
   const techList = document.getElementById('technical-alignment-list');
-  if (techList) {
-    const techItems = data.technicalAlignment && data.technicalAlignment.length ? data.technicalAlignment : [
-      { skill: 'Kafka / Event Systems', percentage: 85 },
-      { skill: 'AWS / Cloud', percentage: 80 },
-      { skill: 'Backend Engineering', percentage: 75 },
-      { skill: 'AI / ML', percentage: 70 }
-    ];
-
-    techList.innerHTML = techItems.map(t => `
+  if (techList && data.technicalAlignment && data.technicalAlignment.length) {
+    techList.innerHTML = data.technicalAlignment.map(t => `
       <div class="cr-tech-row">
         <span class="cr-tech-skill">${t.skill}</span>
         <div class="cr-tech-bar-track">
@@ -369,22 +346,24 @@ function renderVerdict(data, scraped) {
     `).join('');
   }
 
-  // 7. Reasoning Drawer Telemetry
+  // 7. Dynamic Reasoning Drawer Content (C3 fix — no more hardcoded text)
   const deepRationale = document.getElementById('drawer-deep-rationale');
   const interviewPitch = document.getElementById('drawer-interview-pitch');
   const probsList = document.getElementById('drawer-probabilities-list');
   const footerTelemetry = document.getElementById('footer-telemetry');
 
   if (footerTelemetry) {
-    footerTelemetry.innerText = `Analyzed in ${data.ms || 1138}ms`;
+    footerTelemetry.innerText = `Analyzed in ${data.ms || '—'}ms`;
   }
 
   if (deepRationale) {
-    deepRationale.innerText = `Candidate demonstrates high systems complexity in Kafka pipelines and AWS cloud services. While the listing notes ${expComp.required}, candidate's verified deliverables bridge the tenure delta. Verdict: ${headline}.`;
+    deepRationale.innerText = buildDynamicRationale(data, scraped, headline, expComp);
   }
 
+  // Generate dynamic pitch from actual match data
+  lastGeneratedPitch = buildDynamicPitch(data, scraped);
   if (interviewPitch) {
-    interviewPitch.innerText = `"I've built and scaled Kafka asynchronous event pipelines and AWS cloud services handling high concurrency, allowing me to contribute immediate production value to distributed systems."`;
+    interviewPitch.innerText = lastGeneratedPitch;
   }
 
   if (probsList && data.verdictProbabilities) {
@@ -398,32 +377,24 @@ function renderVerdict(data, scraped) {
   }
 }
 
-// ── Tab Evaluation Execution ──
-async function evaluateCurrentTab() {
-  const tab = await getActiveTab();
-  if (!tab || !tab.id) return;
+// ── Sole Evaluation Engine (H2/H3 fix) ──
+let currentEvaluatedJobId = null;
+
+async function evaluateJobDetails(scraped, fallbackTab = null) {
+  if (!scraped || (!scraped.title && !scraped.description)) return;
+
+  const jobId = scraped.jobId || scraped.url || (fallbackTab ? `tab-${fallbackTab.id}` : 'current-job');
+  if (currentEvaluatedJobId === jobId && activeJobData) return;
+  currentEvaluatedJobId = jobId;
 
   if (currentSidepanelAbortController) {
     currentSidepanelAbortController.abort();
   }
   currentSidepanelAbortController = new AbortController();
 
-  showLoadingSkeleton(tab.title ? tab.title.split(/ [|\-–—] /)[0] : 'Scanning Job...', 'Local Arbitrator');
+  showLoadingSkeleton(scraped.title || 'Scanning Job...', scraped.company || 'Local Arbitrator');
 
   try {
-    const [result] = await chrome.scripting.executeScript({
-      target: { tabId: tab.id },
-      func: scrapeJobDetailsFromPage
-    });
-
-    const scraped = result?.result || {
-      title: tab.title || 'DevOps Engineer',
-      company: 'Detected Company',
-      location: 'Remote',
-      description: 'Distributed systems engineering',
-      url: tab.url || ''
-    };
-
     const { activePersona = 'custom', customResume = null } = await chrome.storage.local.get([
       'activePersona',
       'customResume'
@@ -435,13 +406,14 @@ async function evaluateCurrentTab() {
       signal: currentSidepanelAbortController.signal,
       body: JSON.stringify({
         job: {
-          id: `tab-${tab.id}`,
+          id: jobId,
           title: scraped.title,
           company: scraped.company,
           location: scraped.location,
           description: scraped.description,
-          coreMission: scraped.description.slice(0, 500),
-          engineeringDemands: scraped.description.slice(0, 500)
+          coreMission: scraped.description?.slice(0, 500) || '',
+          engineeringDemands: scraped.description?.slice(0, 500) || '',
+          url: scraped.url || ''
         },
         resume: activePersona,
         customResume
@@ -454,68 +426,83 @@ async function evaluateCurrentTab() {
 
     const data = await res.json();
     renderVerdict(data, scraped);
+    chrome.storage.local.set({ activeJobEvaluation: { data, scraped } }).catch(() => {});
   } catch (err) {
     if (err.name === 'AbortError') return;
     console.error('Scan error:', err);
-    hideLoadingSkeleton();
-    // Render resilient baseline verdict matching prompt reference
-    renderVerdict({
-      verdict: 'reach_apply',
-      verdictHeadline: 'REACH APPLY',
-      verdictSubtext: 'Technical match is strong; experience is the main stretch.',
-      badgeLabel: 'Competitive Contender',
-      matchPercentage: 62,
-      techScore: 2.9,
-      expScore: 2.5,
-      interviewOdds: 0.54,
-      ms: 1138,
-      evidence: [
-        { text: 'Kafka / Event-driven systems', tag: 'Strong match', status: 'strong' },
-        { text: 'AWS cloud architecture & services', tag: 'Strong match', status: 'strong' },
-        { text: 'Backend engineering (Java, Spring Boot, etc.)', tag: 'Good match', status: 'good' },
-        { text: 'AI/ML experience (relevant projects)', tag: 'Good match', status: 'good' },
-        { text: 'Less formal experience (1.5 yrs vs 3–5 yrs)', tag: 'Manageable stretch', status: 'stretch', isStretch: true }
-      ],
-      experienceComparison: {
-        required: '3 – 5 yrs',
-        candidate: '1.5 yrs',
-        evaluationType: 'Scope-Based',
-        note: 'Scope-based evaluation · Manageable stretch'
-      },
-      technicalAlignment: [
-        { skill: 'Kafka / Event Systems', percentage: 85 },
-        { skill: 'AWS / Cloud', percentage: 80 },
-        { skill: 'Backend Engineering', percentage: 75 },
-        { skill: 'AI / ML', percentage: 70 }
-      ]
-    }, {
-      title: tab?.title ? tab.title.split(/ [|\-–—] /)[0] : 'DevOps Engineer',
-      company: 'Detected Company',
-      url: tab?.url || ''
-    });
+    // C2 fix: Show explicit error state instead of fake hardcoded verdict
+    const errorMsg = err.message?.includes('Failed to fetch') || err.message?.includes('NetworkError')
+      ? 'Backend server is unreachable. Start the server with npm run server'
+      : `Evaluation failed: ${err.message || 'Unknown error'}`;
+    renderErrorState(errorMsg);
   }
 }
 
-// ── Check if Tab is a Job Page ──
+// ── Tab Evaluation Execution ──
+async function evaluateCurrentTab() {
+  const tab = await getActiveTab();
+  if (!tab || !tab.id) return;
+
+  // Request scraped details from the canonical content script (H2/H3 fix: no duplicate executeScript)
+  let scraped = null;
+  try {
+    const response = await chrome.tabs.sendMessage(tab.id, { type: 'GET_ACTIVE_JOB_DETAILS' });
+    if (response && (response.title || response.description)) {
+      scraped = { ...response, url: tab.url || '' };
+    }
+  } catch {
+    // Content script may not be active on this URL
+  }
+
+  if (!scraped) {
+    const cleanTitle = tab.title ? tab.title.split(/ [|\-–—] /)[0].trim() : 'Detected Listing';
+    scraped = {
+      jobId: `tab-${tab.id}`,
+      title: cleanTitle,
+      company: 'Detected Company',
+      location: 'Current Tab',
+      description: `Job posting: ${tab.title || tab.url || ''}`,
+      url: tab.url || ''
+    };
+  }
+
+  await evaluateJobDetails(scraped, tab);
+}
+
+// ── Canonical Check if URL is a Job Page (M12 fix) ──
+const JOB_BOARD_DOMAINS = [
+  'linkedin.com',
+  'indeed.com',
+  'google.com/about/careers',
+  'careers.google.com',
+  'wellfound.com',
+  'angel.co',
+  'workatastartup.com',
+  'greenhouse.io',
+  'lever.co',
+  'ashbyhq.com',
+  'myworkdayjobs.com',
+  'amazon.jobs',
+  'smartrecruiters.com',
+  'icims.com',
+  'jobvite.com'
+];
+
 function isJobUrl(url = '') {
   const u = url.toLowerCase();
-  return (
-    u.includes('linkedin.com/jobs') ||
-    u.includes('currentjobid=') ||
-    u.includes('google.com/about/careers') ||
-    u.includes('careers.google.com') ||
-    u.includes('indeed.com') ||
-    u.includes('wellfound.com') ||
-    u.includes('workatastartup.com') ||
-    u.includes('greenhouse.io') ||
-    u.includes('lever.co') ||
-    u.includes('ashbyhq.com') ||
-    u.includes('myworkdayjobs.com') ||
-    u.includes('amazon.jobs') ||
-    u.includes('/careers') ||
-    u.includes('/jobs') ||
-    u.includes('/positions')
-  );
+  try {
+    const parsed = new URL(url);
+    const host = parsed.hostname.toLowerCase();
+    const path = parsed.pathname.toLowerCase();
+
+    if (host.includes('linkedin.com') && (path.includes('/jobs') || u.includes('currentjobid='))) return true;
+    if (host.includes('google.com') && (path.includes('/careers') || path.includes('/jobs'))) return true;
+    if (JOB_BOARD_DOMAINS.some(d => host.includes(d) || u.includes(d))) return true;
+    if (/(^|\/)(?:jobs|careers|positions)(\/|$)/.test(path)) return true;
+  } catch {
+    if (JOB_BOARD_DOMAINS.some(d => u.includes(d))) return true;
+  }
+  return false;
 }
 
 function checkAndAutoScanTab(tab) {
@@ -578,10 +565,13 @@ async function init() {
   btnCloseReasoning?.addEventListener('click', () => toggleReasoningDrawer(false));
   reasoningBackdrop?.addEventListener('click', () => toggleReasoningDrawer(false));
 
-  // Copy Pitch Handlers
+  // Copy Pitch Handlers — uses dynamically generated pitch
   function copyStrategicPitch() {
-    const pitchText = document.getElementById('drawer-interview-pitch')?.innerText ||
-      `"I've built and scaled Kafka asynchronous event pipelines and AWS cloud services handling high concurrency, allowing me to contribute immediate production value to distributed systems."`;
+    const pitchText = lastGeneratedPitch || document.getElementById('drawer-interview-pitch')?.innerText || '';
+    if (!pitchText) {
+      showToast('No pitch available — evaluate a job first');
+      return;
+    }
     navigator.clipboard.writeText(pitchText).then(() => {
       showToast('✓ Strategic pitch copied to clipboard');
     }).catch(() => {
@@ -592,20 +582,12 @@ async function init() {
   btnCopyPitch?.addEventListener('click', copyStrategicPitch);
 
   const btnApplyAnyway = document.getElementById('btn-apply-anyway');
-  const btnOpenJob = document.getElementById('btn-open-job');
 
   btnApplyAnyway?.addEventListener('click', () => {
     copyStrategicPitch();
     getActiveTab().then(tab => {
       if (tab?.id) chrome.tabs.update(tab.id, { active: true });
     });
-  });
-
-  btnOpenJob?.addEventListener('click', async () => {
-    const tab = await getActiveTab();
-    if (tab?.url) {
-      window.open(tab.url, '_blank');
-    }
   });
 
   // Keyboard Shortcuts (⌘R / Ctrl+R to rescan, ⌘↵ / Ctrl+Enter to apply, Esc to close drawer)
@@ -758,14 +740,20 @@ async function init() {
     }
   });
 
-  // Listen for evaluations broadcast from content script
+  // Listen for evaluations broadcast from content script (H2/H3 fix)
   chrome.runtime.onMessage?.addListener((message) => {
-    if (message.type === 'JOB_EVALUATING') {
-      showLoadingSkeleton(message.title, message.company);
-    } else if (message.type === 'JOB_EVALUATED_AUTOMATICALLY' || message.type === 'ACTIVE_JOB_EVALUATED') {
-      if (message.data && message.scraped) {
-        renderVerdict(message.data, message.scraped);
-      }
+    if (message.type === 'JOB_CONTEXT_UPDATED' && message.details) {
+      evaluateJobDetails(message.details);
+    }
+  });
+
+  // Handle View Job external tab link safely without sidepanel navigation
+  const viewJobLink = document.getElementById('btn-view-job-link');
+  viewJobLink?.addEventListener('click', (e) => {
+    e.preventDefault();
+    const targetUrl = viewJobLink.getAttribute('data-url') || viewJobLink.href;
+    if (targetUrl && targetUrl !== '#' && !targetUrl.startsWith('javascript:')) {
+      chrome.tabs.create({ url: targetUrl });
     }
   });
 }

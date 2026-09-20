@@ -64,7 +64,9 @@ body {
   -moz-osx-font-smoothing: grayscale;
   padding: 0;
   margin: 0;
-  overflow-x: hidden;
+}
+
+button, .cr-icon-btn, .cr-btn-edit, .cr-btn-primary, .cr-btn-secondary, .cr-btn-job-action {
   user-select: none;
 }
 
@@ -437,6 +439,35 @@ body {
   background: #fffcfc;
   border-color: #fecaca;
   box-shadow: 0 1px 3px rgba(239, 68, 68, 0.04);
+}
+
+.cr-verdict-box.verdict-error {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+  box-shadow: 0 1px 3px rgba(100, 116, 139, 0.06);
+}
+
+.cr-verdict-box.verdict-error .cr-verdict-badge-tag {
+  color: var(--cr-text-muted);
+}
+
+.cr-verdict-box.verdict-error .cr-verdict-headline {
+  color: var(--cr-text-muted);
+  font-size: 20px;
+}
+
+.cr-verdict-box.verdict-error .cr-verdict-status-pill {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+  color: #64748b;
+}
+
+.cr-verdict-box.verdict-error .cr-gauge-bg-circle {
+  stroke: #e2e8f0;
+}
+
+.cr-verdict-box.verdict-error .cr-gauge-bar-circle {
+  stroke: #94a3b8;
 }
 
 .cr-verdict-header-line {
@@ -1067,165 +1098,5 @@ body {
   opacity: 1;
 }
 
-/* In-Page Dock & Drawer (Maintained for Content Script) */
-#careerradar-dock-tab {
-  position: fixed;
-  top: 48%;
-  right: 0;
-  transform: translateY(-50%);
-  z-index: 2147483640;
-  width: 36px;
-  height: 36px;
-  background: #09090b;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  border-right: none;
-  border-radius: 9px 0 0 9px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  box-shadow: -3px 3px 14px rgba(0, 0, 0, 0.22);
-  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), background 0.15s ease;
-  user-select: none;
-}
 
-#careerradar-dock-tab:hover {
-  transform: translateY(-50%) translateX(-3px);
-  background: #18181b;
-}
-
-#careerradar-dock-tab .dock-icon-svg {
-  width: 18px;
-  height: 18px;
-  color: #38bdf8;
-}
-
-#careerradar-dock-tab .dock-fit-dot {
-  position: absolute;
-  top: 5px;
-  left: 5px;
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: #10b981;
-  display: none;
-}
-
-#careerradar-dock-tab .dock-tooltip {
-  position: absolute;
-  right: 44px;
-  top: 50%;
-  transform: translateY(-50%);
-  background: #18181b;
-  color: #fafafa;
-  border: 1px solid #27272a;
-  border-radius: 6px;
-  padding: 4px 8px;
-  font-size: 11px;
-  font-weight: 500;
-  white-space: nowrap;
-  pointer-events: none;
-  opacity: 0;
-  transition: opacity 0.15s ease;
-}
-
-#careerradar-dock-tab:hover .dock-tooltip {
-  opacity: 1;
-}
-
-#careerradar-inpage-drawer {
-  position: fixed;
-  top: 0;
-  right: -440px;
-  width: 410px;
-  max-width: 90vw;
-  height: 100vh;
-  z-index: 2147483645;
-  background: var(--cr-bg);
-  border-left: 1px solid var(--cr-border);
-  box-shadow: -10px 0 32px rgba(0, 0, 0, 0.12);
-  transition: right 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-  overflow-y: auto;
-  padding: 14px;
-}
-
-#careerradar-inpage-drawer.open {
-  right: 0;
-}
-
-/* In-Page Drawer Compatibility Classes */
-.cr-verdict-hero {
-  border-radius: var(--cr-radius-sm);
-  padding: 6px 10px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.03em;
-  text-transform: uppercase;
-}
-.cr-verdict-hero-can-apply { background: var(--cr-green-bg); color: var(--cr-green-text); border: 1px solid var(--cr-green-border); }
-.cr-verdict-hero-reach-apply { background: var(--cr-amber-bg); color: var(--cr-amber-text); border: 1px solid var(--cr-amber-border); }
-.cr-verdict-hero-mismatch { background: var(--cr-red-bg); color: var(--cr-red-text); border: 1px solid var(--cr-red-border); }
-
-.cr-verdict-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  margin-right: 6px;
-  display: inline-block;
-}
-.cr-verdict-dot-can-apply { background: var(--cr-green-accent); box-shadow: 0 0 6px rgba(16, 185, 129, 0.8); }
-.cr-verdict-dot-reach-apply { background: var(--cr-amber-accent); box-shadow: 0 0 6px rgba(245, 158, 11, 0.8); }
-.cr-verdict-dot-mismatch { background: var(--cr-red-accent); box-shadow: 0 0 6px rgba(239, 68, 68, 0.8); }
-
-.cr-summary-box {
-  background: var(--cr-surface-subtle);
-  border: 1px solid var(--cr-border);
-  border-radius: var(--cr-radius-sm);
-  padding: 8px 10px;
-  font-size: 11.5px;
-  color: var(--cr-text-secondary);
-  line-height: 1.4;
-  margin: 8px 0;
-}
-
-.cr-metrics-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 6px;
-  margin: 8px 0;
-}
-.cr-metric-tile {
-  background: var(--cr-surface);
-  border: 1px solid var(--cr-border);
-  border-radius: var(--cr-radius-sm);
-  padding: 6px 8px;
-  text-align: center;
-}
-.cr-metric-label { font-size: 9.5px; color: var(--cr-text-muted); text-transform: uppercase; font-weight: 600; margin-bottom: 2px; }
-.cr-metric-val { font-size: 14px; font-weight: 750; font-family: var(--cr-font-mono); color: var(--cr-text-primary); }
-.cr-metric-track { width: 100%; height: 3px; background: var(--cr-surface-muted); border-radius: 2px; margin-top: 4px; overflow: hidden; }
-.cr-metric-fill { height: 100%; border-radius: 2px; transition: width 0.4s ease; }
-
-.cr-calib-strip {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  background: var(--cr-surface-subtle);
-  border: 1px solid var(--cr-border);
-  border-radius: var(--cr-radius-sm);
-  padding: 6px 10px;
-  margin-top: 6px;
-}
-.cr-calib-side { display: flex; flex-direction: column; }
-.cr-calib-lbl { font-size: 9.5px; color: var(--cr-text-muted); text-transform: uppercase; font-weight: 600; }
-.cr-calib-val { font-size: 11.5px; font-weight: 700; color: var(--cr-text-primary); font-family: var(--cr-font-mono); }
-.cr-calib-divider { font-size: 10.5px; color: var(--cr-text-faint); font-weight: 600; }
-.cr-calib-note { font-size: 10px; color: var(--cr-amber-text); margin-top: 4px; font-style: italic; }
-
-.cr-chips-container { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
-.cr-chip-green { background: var(--cr-green-bg); color: var(--cr-green-text); border: 1px solid var(--cr-green-border); border-radius: var(--cr-radius-xs); padding: 2px 6px; font-size: 10px; font-weight: 550; }
-.cr-chip-amber { background: var(--cr-amber-bg); color: var(--cr-amber-text); border: 1px solid var(--cr-amber-border); border-radius: var(--cr-radius-xs); padding: 2px 6px; font-size: 10px; font-weight: 550; }
 

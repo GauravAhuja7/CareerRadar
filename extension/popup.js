@@ -1,16 +1,25 @@
-// GhostHunter Popup Script (Manifest V3)
+// CareerRadar Popup Script (Manifest V3)
 
 document.addEventListener('DOMContentLoaded', async () => {
-  const { activePersona = 'alex' } = await chrome.storage.local.get('activePersona');
-  const personaNameEl = document.getElementById('persona-name');
-  if (personaNameEl) {
-    const names = {
-      alex: 'Alex Chen (5.5y)',
-      maya: 'Maya Patel (8y)',
-      jordan: 'Jordan Lee (1.5y)',
-      custom: 'Custom Resume'
-    };
-    personaNameEl.innerText = names[activePersona] || 'Alex Chen (5.5y)';
+  // Health check to update status badge
+  const statusBadge = document.querySelector('.status-badge');
+  if (statusBadge) {
+    try {
+      const res = await fetch('http://localhost:3001/api/health', { signal: AbortSignal.timeout(3000) });
+      if (res.ok) {
+        statusBadge.textContent = 'Online';
+        statusBadge.style.background = '#ecfdf5';
+        statusBadge.style.color = '#059669';
+        statusBadge.style.borderColor = '#a7f3d0';
+      } else {
+        throw new Error('not ok');
+      }
+    } catch {
+      statusBadge.textContent = 'Offline';
+      statusBadge.style.background = '#fef2f2';
+      statusBadge.style.color = '#991b1b';
+      statusBadge.style.borderColor = '#fecaca';
+    }
   }
 
   const btnSidepanel = document.getElementById('btn-open-sidepanel');

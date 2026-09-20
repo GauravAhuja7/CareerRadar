@@ -1,15 +1,12 @@
 // CareerRadar Ambient Content Script
 // Pure headless context observer & job extractor for Chrome Side Panel
 // ZERO DOM INJECTION: No floating tabs, no in-page drawers, no layout shift.
+// ZERO API CALLS: Content script only scrapes and broadcasts. Sidepanel evaluates.
 console.log('🎯 CareerRadar Active — Headless Job Context Observer.');
-
-const BACKEND_URL = 'http://localhost:3001';
 
 // Internal State Machine
 let activeJobId = null;
-let isEvaluating = false;
-let lastEvaluatedJobId = null;
-let inflightController = null;
+let lastBroadcastedJobId = null;
 let scanDebounceTimer = null;
 let lastKnownUrl = window.location.href;
 
@@ -31,14 +28,13 @@ function purgeStaleInjectedElements() {
 function isJobPage() {
   const url = window.location.href.toLowerCase();
   const host = window.location.hostname.toLowerCase();
+  const path = window.location.pathname.toLowerCase();
 
-  // Known job portals & paths
+  // Known job portals (H6 fix: hostname checked separately from path)
   if (
-    host.includes('linkedin.com/jobs') ||
-    url.includes('currentjobid=') ||
-    url.includes('/jobs/view/') ||
-    url.includes('google.com/about/careers') ||
-    url.includes('careers.google.com') ||
+    (host.includes('linkedin.com') && (path.includes('/jobs') || url.includes('currentjobid='))) ||
+    (host.includes('google.com') && (path.includes('/careers') || path.includes('/jobs'))) ||
+    host.includes('careers.google.com') ||
     host.includes('indeed.com') ||
     host.includes('wellfound.com') ||
     host.includes('angel.co') ||
@@ -50,11 +46,13 @@ function isJobPage() {
     host.includes('amazon.jobs') ||
     host.includes('smartrecruiters.com') ||
     host.includes('icims.com') ||
-    host.includes('jobvite.com') ||
-    url.includes('/careers/') ||
-    url.includes('/jobs/') ||
-    url.includes('/positions/')
+    host.includes('jobvite.com')
   ) {
+    return true;
+  }
+
+  // Stricter generic path matching (H6 fix: avoid false positives like /blog/best-careers/)
+  if (/(^|\/)(?:jobs|careers|positions)(\/|$)/.test(path)) {
     return true;
   }
 
@@ -79,16 +77,6 @@ function isExtensionContextValid() {
   }
 }
 
-function safeStorageSet(data) {
-  try {
-    if (isExtensionContextValid() && chrome.storage?.local) {
-      chrome.storage.local.set(data, () => {
-        if (chrome.runtime?.lastError) { /* swallow */ }
-      });
-    }
-  } catch {}
-}
-
 function safeSendMessage(message) {
   try {
     if (isExtensionContextValid()) {
@@ -97,20 +85,6 @@ function safeSendMessage(message) {
       });
     }
   } catch {}
-}
-
-// ── Candidate Profile Access ──
-async function getActiveCandidate() {
-  try {
-    if (isExtensionContextValid() && chrome.storage?.local) {
-      const stored = await chrome.storage.local.get(['activePersona', 'customResume']);
-      return {
-        activePersona: stored.activePersona || 'custom',
-        customResume: stored.customResume || null
-      };
-    }
-  } catch {}
-  return { activePersona: 'custom', customResume: null };
 }
 
 // ── Extract Unique Job ID ──
@@ -152,7 +126,7 @@ function getActiveJobIdFromPage() {
   }
 }
 
-// ── Robust Job Details Extractor ──
+// ── Robust Job Details Extractor (Canonical — sidepanel delegates to this) ──
 function extractActiveJobDetails() {
   const host = window.location.hostname.toLowerCase();
   const url = window.location.href.toLowerCase();
@@ -248,125 +222,37 @@ function extractActiveJobDetails() {
   return { jobId, title, company, location, description };
 }
 
-// ── Evaluation Core (Headless — Syncs with Side Panel) ──
-async function evaluateActiveJob(force = false) {
+// ── Broadcast Job Context to Side Panel (H2/H3 fix: no more direct API calls) ──
+function broadcastJobContext() {
   if (!isJobPage()) return;
 
   const details = extractActiveJobDetails();
   const jobId = details.jobId;
 
-  // 1. Skip if already evaluated this exact job
-  if (!force && jobId && jobId === lastEvaluatedJobId) {
-    return;
-  }
+  // Skip if already broadcasted this exact job
+  if (jobId && jobId === lastBroadcastedJobId) return;
 
-  // 2. Prevent self-aborting / overlapping loops for the same job
-  if (isEvaluating && jobId && jobId === activeJobId) {
-    return;
-  }
-
-  // 3. If scanning an old job and user switched to a new job, abort previous fetch
-  if (isEvaluating && inflightController) {
-    inflightController.abort();
-  }
-
-  isEvaluating = true;
   activeJobId = jobId;
+  lastBroadcastedJobId = jobId;
 
-  // Notify side panel of active evaluation
+  // Notify side panel with scraped data — sidepanel handles the API call
   safeSendMessage({
-    type: 'JOB_EVALUATING',
-    title: details.title,
-    company: details.company,
+    type: 'JOB_CONTEXT_UPDATED',
+    details,
     jobId
   });
-
-  inflightController = new AbortController();
-  const currentSignal = inflightController.signal;
-
-  // 14-second network timeout guard
-  const timeoutId = setTimeout(() => {
-    if (isEvaluating && activeJobId === jobId) {
-      inflightController?.abort();
-    }
-  }, 14000);
-
-  try {
-    const { activePersona, customResume } = await getActiveCandidate();
-
-    const res = await fetch(`${BACKEND_URL}/api/scan-job`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      signal: currentSignal,
-      body: JSON.stringify({
-        job: {
-          id: jobId,
-          title: details.title,
-          company: details.company,
-          location: details.location,
-          description: details.description,
-          coreMission: details.description.slice(0, 500),
-          engineeringDemands: details.description.slice(0, 500)
-        },
-        resume: activePersona,
-        customResume
-      })
-    });
-
-    clearTimeout(timeoutId);
-
-    if (!res.ok) {
-      const errJson = await res.json().catch(() => ({}));
-      throw new Error(errJson.error || `Server responded with status ${res.status}`);
-    }
-
-    const data = await res.json();
-
-    // Discard if user already clicked another job while waiting
-    if (activeJobId !== jobId) return;
-
-    lastEvaluatedJobId = jobId;
-    isEvaluating = false;
-
-    // Save to shared storage so Side Panel receives it reliably
-    const evalPayload = {
-      data,
-      scraped: details,
-      timestamp: Date.now()
-    };
-
-    safeStorageSet({
-      activeJobEvaluation: evalPayload,
-      activeJobEvaluating: null
-    });
-
-    // Broadcast to native Chrome Side Panel
-    safeSendMessage({
-      type: 'JOB_EVALUATED_AUTOMATICALLY',
-      ...evalPayload
-    });
-  } catch (err) {
-    clearTimeout(timeoutId);
-
-    if (err.name === 'AbortError' && activeJobId !== jobId) {
-      return;
-    }
-
-    isEvaluating = false;
-    safeStorageSet({ activeJobEvaluating: null });
-  }
 }
 
 // ── Debounced Trigger Helper ──
-function triggerDebouncedScan(force = false, delayMs = 150) {
+function triggerDebouncedBroadcast(delayMs = 150) {
   if (!isJobPage()) return;
   if (scanDebounceTimer) clearTimeout(scanDebounceTimer);
   scanDebounceTimer = setTimeout(() => {
-    evaluateActiveJob(force);
+    broadcastJobContext();
   }, delayMs);
 }
 
-// ── Watchdogs & Event System ──
+// ── Watchdogs & Event System (M3 fix: smarter observation) ──
 function initWatchdogs() {
   purgeStaleInjectedElements();
 
@@ -378,41 +264,68 @@ function initWatchdogs() {
       '.jobs-search-results__list-item, .job-card-container, .jobs-search-results-list__list-item, [data-occludable-job-id], [data-job-id], a[href*="/jobs/view/"], .scaffold-layout__list-item, [role="listitem"]'
     );
     if (jobClick) {
-      triggerDebouncedScan(false, 150);
+      // Reset last broadcasted so we re-broadcast after click
+      lastBroadcastedJobId = null;
+      triggerDebouncedBroadcast(150);
     }
   }, true);
 
-  // 2. Watch URL and Job ID changes
-  setInterval(() => {
-    purgeStaleInjectedElements();
+  // 2. Watch URL changes via popstate/hashchange for SPA navigation
+  window.addEventListener('popstate', () => {
+    lastBroadcastedJobId = null;
+    triggerDebouncedBroadcast(100);
+  });
+  window.addEventListener('hashchange', () => {
+    lastBroadcastedJobId = null;
+    triggerDebouncedBroadcast(100);
+  });
 
-    if (!isJobPage()) return;
+  // 3. MutationObserver for LinkedIn's job detail pane changes
+  const detailPane = document.querySelector('.scaffold-layout__detail, .jobs-search__job-details, main');
+  if (detailPane) {
+    const observer = new MutationObserver(() => {
+      const currentJobId = getActiveJobIdFromPage();
+      if (currentJobId && currentJobId !== lastBroadcastedJobId) {
+        triggerDebouncedBroadcast(200);
+      }
+    });
+    observer.observe(detailPane, { childList: true, subtree: true });
+  }
+
+  // 4. Fallback interval at 2s (5x slower than before) for SPA edge cases only
+  let fallbackInterval = setInterval(() => {
+    if (!isJobPage()) {
+      clearInterval(fallbackInterval);
+      return;
+    }
     const currentUrl = window.location.href;
     const currentJobId = getActiveJobIdFromPage();
 
-    if (currentJobId && currentJobId !== lastEvaluatedJobId && (!isEvaluating || currentJobId !== activeJobId)) {
+    if (currentJobId && currentJobId !== lastBroadcastedJobId) {
       lastKnownUrl = currentUrl;
-      triggerDebouncedScan(false, 100);
+      triggerDebouncedBroadcast(100);
     } else if (currentUrl !== lastKnownUrl) {
       lastKnownUrl = currentUrl;
-      triggerDebouncedScan(false, 100);
+      lastBroadcastedJobId = null;
+      triggerDebouncedBroadcast(100);
     }
-  }, 400);
+  }, 2000);
 
-  // 3. Service worker & side panel message listener
+  // 5. Service worker & side panel message listener
   chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     if (msg.type === 'GET_ACTIVE_JOB_DETAILS') {
       sendResponse(extractActiveJobDetails());
       return true;
     }
     if (msg.type === 'URL_NAVIGATED' || msg.type === 'FORCE_SCAN_JOB') {
-      triggerDebouncedScan(true, 50);
+      lastBroadcastedJobId = null;
+      triggerDebouncedBroadcast(50);
     }
   });
 
-  // 4. Initial trigger after page load
+  // 6. Initial broadcast after page load
   setTimeout(() => {
-    evaluateActiveJob(true);
+    broadcastJobContext();
   }, 350);
 }
 

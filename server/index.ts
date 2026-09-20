@@ -16,7 +16,7 @@ if (!apiKey) console.error('⚠ No API key found. Set JEV_API_KEY in .env');
 
 const client = new TypeSafeClient({ apiKey: apiKey || '' });
 
-// ── Realistic Job Postings with Rich Architectural & Scope Detail ──
+// ── Realistic Job Postings with Rich Scope Detail ──
 export interface JobListing {
   id: string;
   title: string;
@@ -86,106 +86,23 @@ export const INITIAL_JOBS: JobListing[] = [
     engineeringDemands: 'Heavy documentation, compliance filings, legacy Java/Oracle modernization, enterprise middleware integration.',
     cultureReality: 'Bureaucratic matrix structure, slow 6-month delivery cycles, opaque compensation, candidate pipeline kept perpetually open.',
     archetype: 'ghost_job'
-  },
-  {
-    id: 'job-4',
-    title: '10x Full-Stack Rockstar Developer (Urgent)',
-    company: 'Apex HyperGrowth Ventures',
-    location: 'Miami, FL (In-Office 6 Days/Week)',
-    salary: '$45,000 - $55,000 (No Equity, High Performance Bonus)',
-    postedDaysAgo: 2,
-    repostCount: 1,
-    applicantCount: 92,
-    hiringManager: 'Chad Miller (Founder & CEO)',
-    experienceScope: 'Solo developer willing to work 70+ hours/week and wear 10 hats',
-    autonomyLevel: 'Lead / Architect',
-    coreMission: 'Solo architect building our entire web portal, mobile app, backend APIs, devops, and smart contract integrations simultaneously under tight deadlines.',
-    engineeringDemands: 'Rapid prototyping with zero test coverage, constant weekend deployments, unpredictable founder pivots.',
-    cultureReality: 'We are a family hustle environment. 24/7 Slack availability. Unlimited PTO (subject to founder written approval, average taken: 2 days).',
-    archetype: 'toxic_lowball'
-  },
-  {
-    id: 'job-5',
-    title: 'Lead Frontend Systems Architect',
-    company: 'Prism HealthTech',
-    location: 'Remote (US)',
-    salary: '$185,000 - $215,000 + Series A Equity',
-    postedDaysAgo: 6,
-    repostCount: 0,
-    applicantCount: 32,
-    hiringManager: 'Marcus Thorne (CTO)',
-    experienceScope: 'Senior/Lead frontend engineer with deep focus on design systems, performance, and accessibility',
-    autonomyLevel: 'Lead / Architect',
-    coreMission: 'Architect clinical workflow web applications used by 40,000+ oncologists. Lead frontend architecture, enforce WCAG 2.2 AA accessibility, and optimize sub-100ms dashboard renders.',
-    engineeringDemands: 'Deep mastery of browser rendering pipeline, web performance metrics (LCP, INP), design tokens, and modular component architecture.',
-    cultureReality: 'High mission alignment, calm 40-hour engineering rhythm, clear product roadmaps, comprehensive benefits.',
-    archetype: 'high_signal'
-  },
-  {
-    id: 'job-6',
-    title: 'Autonomous Robotics Real-Time Systems Engineer',
-    company: 'Vector Dynamics Robotics',
-    location: 'Boston, MA (On-Site Hardware Lab)',
-    salary: '$195,000 - $235,000 + Equity',
-    postedDaysAgo: 4,
-    repostCount: 0,
-    applicantCount: 18,
-    hiringManager: 'Dr. Karen Wei (Chief Scientist)',
-    experienceScope: 'Embedded C++/Linux systems engineer with real-time hardware interfacing background',
-    autonomyLevel: 'Autonomous IC',
-    coreMission: 'Develop low-latency sensor fusion and kinematic trajectory planning software running on embedded robotic arms.',
-    engineeringDemands: 'Requires modern C++20, real-time Linux patches, memory-mapped I/O, CUDA hardware acceleration, and physical safety validation.',
-    cultureReality: 'Hardware lab culture, high safety rigor, academic publication support, structured engineering validation.',
-    archetype: 'skill_mismatch'
-  },
-  {
-    id: 'job-7',
-    title: 'Cloud Infrastructure & Security Lead',
-    company: 'MegaBank Federal (Internal Posting)',
-    location: 'Charlotte, NC',
-    salary: '$140,000 - $160,000',
-    postedDaysAgo: 210,
-    repostCount: 7,
-    applicantCount: 4200,
-    hiringManager: null,
-    experienceScope: 'Enterprise cloud security compliance',
-    autonomyLevel: 'Autonomous IC',
-    coreMission: 'Fulfill regulatory audit requirements for federal banking cloud infrastructure. Position subject to internal transfer priority.',
-    engineeringDemands: 'FedRAMP and SOC2 checklist reviews, slow change-advisory board approvals, legacy Java maintenance.',
-    cultureReality: 'Listing maintained continuously for statutory hiring compliance; internal candidate already earmarked.',
-    archetype: 'compliance_zombie'
-  },
-  {
-    id: 'job-8',
-    title: 'Interactive Web Experience & Graphics Engineer',
-    company: 'MotionCraft Studios',
-    location: 'Remote (Worldwide)',
-    salary: '$170,000 - $200,000',
-    postedDaysAgo: 1,
-    repostCount: 0,
-    applicantCount: 14,
-    hiringManager: 'Sophie Laurent (Creative Director)',
-    experienceScope: 'Frontend engineer with deep craft in creative coding, 60fps animations, and WebGL shaders',
-    autonomyLevel: 'Autonomous IC',
-    coreMission: 'Build world-class interactive 3D web applications and animated brand experiences for cutting-edge technology companies.',
-    engineeringDemands: 'Mastery of spring physics, custom shaders, Canvas/WebGL performance tuning, and fluid responsive micro-interactions.',
-    cultureReality: 'Design-obsessed, highly collaborative, flexible asynchronous hours across all timezones.',
-    archetype: 'high_signal'
   }
 ];
 
-// ── Candidate Profile Interface with Holistic Engineering Context ──
+// ── Candidate Profile Interface (Domain-Agnostic) ──
 export interface CandidateResume {
   id: string;
   name: string;
   targetRole: string;
   experienceYears: number;
   seniorityTier: 'Junior' | 'Mid-Level' | 'Senior' | 'Staff / Lead';
-  engineeringArchetype: string;
+  candidateDiscipline: string;
+  engineeringArchetype?: string;
   demonstratedScaleAndScope: string;
   autonomyTrackRecord: string;
   primaryTechnicalDomains: string[];
   fullResumeText: string;
+  summary?: string;
 }
 
 export const PERSONAS: Record<string, CandidateResume> = {
@@ -195,6 +112,7 @@ export const PERSONAS: Record<string, CandidateResume> = {
     targetRole: 'Senior Full-Stack / Product Systems Engineer',
     experienceYears: 5.5,
     seniorityTier: 'Senior',
+    candidateDiscipline: 'Software & Systems Engineering',
     engineeringArchetype: 'Product-Focused Systems Engineer with strong full-stack foundations and scale track record',
     demonstratedScaleAndScope: 'Architected high-throughput real-time trading dashboards handling 120,000 daily active users and 45,000 events/sec. Designed microservices in Node/TypeScript and PostgreSQL, cutting p95 API response latency by 42% through optimized database indexing and distributed Redis caching.',
     autonomyTrackRecord: 'Operated as autonomous technical owner across 3 mission-critical product launches. Authored RFCs for client state management and API contracts. Regularly mentored 3 junior engineers and established automated integration testing suites.',
@@ -214,6 +132,7 @@ Education: B.S. in Computer Science, UC Berkeley.
     targetRole: 'Staff Infrastructure & Platform Engineer',
     experienceYears: 8,
     seniorityTier: 'Staff / Lead',
+    candidateDiscipline: 'Software & Systems Engineering',
     engineeringArchetype: 'Distributed Systems & Cloud Platform Architect',
     demonstratedScaleAndScope: 'Managed multi-region Kubernetes clusters orchestrating 4,500+ microservice pods across AWS and GCP with 99.995% uptime SLA. Led architectural transition from legacy VMs to containerized service meshes, reducing annual cloud infrastructure spend by $1.2M.',
     autonomyTrackRecord: 'Cross-organizational technical leader setting company-wide infrastructure roadmaps and disaster recovery standards. Served as Incident Commander for Tier-0 production outages. Established automated IaC deployment pipelines using Terraform.',
@@ -233,6 +152,7 @@ Education: M.S. in Computer Engineering, Georgia Tech.
     targetRole: 'Junior Frontend Developer',
     experienceYears: 1.5,
     seniorityTier: 'Junior',
+    candidateDiscipline: 'Software & Systems Engineering',
     engineeringArchetype: 'Eager UI Builder with rapid learning velocity',
     demonstratedScaleAndScope: 'Built responsive client web applications, marketing landing pages, and interactive UI forms using React, Tailwind CSS, and Next.js. Implemented client-side input validation and animated interactive states.',
     autonomyTrackRecord: 'Executes defined engineering tasks with diligence. Actively seeks code review feedback, pair programs with senior engineers, and writes clean component tests.',
@@ -251,6 +171,7 @@ Education: Full-Stack Web Development Certificate + B.A. in Psychology.
     targetRole: 'Backend & Systems Engineer',
     experienceYears: 1.5,
     seniorityTier: 'Junior',
+    candidateDiscipline: 'Software & Systems Engineering',
     engineeringArchetype: 'High-Velocity Systems Engineer with verified distributed event pipelines & high-concurrency architecture',
     demonstratedScaleAndScope: 'Kafka-based asynchronous event pipelines (3x throughput boost); Stateless AWS cloud migration (50% horizontal scalability gain); High-concurrency services sustaining 1000+ peak WebSockets; Cloud-native deployments on AWS with Docker, Kubernetes, and Terraform; Observability stack (Prometheus, Grafana, Loki) cutting incident MTTR 30%; Enterprise ATS API integrations (Greenhouse, Workday, Ashby) with 99.9% sync reliability.',
     autonomyTrackRecord: 'Operates with high autonomy on complex distributed systems, achieving 99.9% sync reliability and 40% P95 latency reduction.',
@@ -275,12 +196,10 @@ Achievements: AiHack 1st Place (CatBoost ML optimization), LeetCode 1900+, Codef
 
 // ── Intelligent Job Experience & Level Extractor ──
 export function extractJobExperienceDemands(fullText: string, title: string) {
-  // Check title strictly for seniority tier to avoid false positives from page text
-  const isSeniorRole = /\b(senior|sr\.?|staff|principal|lead|director|manager|architect)\b/i.test(title);
+  const isSeniorRole = /\b(senior|sr\.?|staff|principal|lead|director|manager|architect|head of|vp)\b/i.test(title);
   const isJuniorRole = /\b(junior|jr\.?|entry[\s\-]?level|new[\s\-]?grad(?:uate)?|fresher|graduate|associate|trainee|intern)\b/i.test(title);
 
-  // Isolate qualifications block if present to avoid matching cookie/legal text
-  const qualMatch = fullText.match(/(?:minimum qualifications|basic qualifications|qualifications|requirements|what you(?:'ll)? need)[\s\S]{0,1400}/i);
+  const qualMatch = fullText.match(/(?:minimum qualifications|basic qualifications|qualifications|requirements|what you(?:'ll)? need|what we(?:'re)? looking for)[\s\S]{0,1400}/i);
   const targetText = qualMatch ? qualMatch[0] : fullText;
 
   // 1. Explicit ranges: "3-5 years", "2 to 4 years", "1–3 yrs"
@@ -302,7 +221,7 @@ export function extractJobExperienceDemands(fullText: string, title: string) {
   }
 
   // 2. Specific year requirements: "2 years of experience", "2+ years", "3 years experience with"
-  const expPattern = /\b([1-9]|1[0-9])\s*(\+)?\s*years?(?:\s+of)?(?:\s+(?:relevant|industry|work|hands[\s\-]?on|software|technical)?\s*experience)?/gi;
+  const expPattern = /\b([1-9]|1[0-9])\s*(\+)?\s*years?(?:\s+of)?(?:\s+(?:relevant|industry|work|hands[\s\-]?on|professional|operational)?\s*experience)?/gi;
   const matches = [...targetText.matchAll(expPattern)];
 
   if (matches.length > 0) {
@@ -321,7 +240,6 @@ export function extractJobExperienceDemands(fullText: string, title: string) {
     }
   }
 
-  // Fallback to fullText if targetText had no matches
   const fallbackMatches = [...fullText.matchAll(expPattern)];
   if (fallbackMatches.length > 0) {
     const numbers = fallbackMatches.map(m => Number(m[1])).filter(n => !isNaN(n) && n > 0 && n <= 15);
@@ -338,10 +256,9 @@ export function extractJobExperienceDemands(fullText: string, title: string) {
     }
   }
 
-  // When NO years of experience are mentioned
   if (isSeniorRole) {
     return {
-      requiredExpStr: 'Not specified (Senior IC Scope)',
+      requiredExpStr: 'Not specified (Senior Scope)',
       minYears: 4,
       maxYears: 7,
       isJunior: false,
@@ -352,7 +269,7 @@ export function extractJobExperienceDemands(fullText: string, title: string) {
 
   if (isJuniorRole) {
     return {
-      requiredExpStr: 'Not specified (Junior / Entry-Level Scope)',
+      requiredExpStr: 'Not specified (Entry-Level Scope)',
       minYears: 0,
       maxYears: 2,
       isJunior: true,
@@ -371,148 +288,437 @@ export function extractJobExperienceDemands(fullText: string, title: string) {
   };
 }
 
-// ── Dynamic Engineering Domain Catalog ──
-export interface DomainCapability {
+// ── Universal Professional Disciplines & Domain Catalogs ──
+export type ProfessionalDiscipline =
+  | 'Human Resources'
+  | 'Software & Systems Engineering'
+  | 'Data, Analytics & AI'
+  | 'Marketing & Communications'
+  | 'Design & Creative'
+  | 'Product & Project Management'
+  | 'Finance & Accounting'
+  | 'Sales & Business Development'
+  | 'Operations & Logistics'
+  | 'General Professional';
+
+export interface CompetencyDemand {
   id: string;
   name: string;
-  jobKeywords: RegExp;
-  candidateKeywords: RegExp;
+  keywords: RegExp;
   evidenceLabel: string;
   gapLabel: string;
 }
 
-export const DOMAIN_CATALOG: DomainCapability[] = [
+export interface DisciplineDefinition {
+  discipline: ProfessionalDiscipline;
+  keywords: RegExp;
+  competencies: CompetencyDemand[];
+}
+
+export const DISCIPLINE_CATALOG: DisciplineDefinition[] = [
   {
-    id: 'systems_automation',
-    name: 'Systems Automation (Python/Go)',
-    jobKeywords: /\b(systems automation|automation|python|golang|\bgo\b|scripting|bash|toil|toil reduction|tooling)\b/i,
-    candidateKeywords: /\b(python|scripting|automation|catboost|bash|fastapi|django)\b/i,
-    evidenceLabel: 'Systems Automation (Python/Go)',
-    gapLabel: 'Systems automation with Python or Go'
+    discipline: 'Human Resources',
+    keywords: /\b(human resources|\bhr\b|hrms|keka|talent acquisition|recruiter|recruitment|employee lifecycle|payroll|compensation|benefits|onboarding|offboarding|employee relations|labor law|labour law|esic|\bpf\b|\btds\b|people operations|people partner|generalist)\b/i,
+    competencies: [
+      {
+        id: 'hr_lifecycle',
+        name: 'Employee Lifecycle & People Operations',
+        keywords: /\b(lifecycle|onboarding|offboarding|employee records|policies|documentation|engagement|performance management)\b/i,
+        evidenceLabel: 'Employee Lifecycle & People Operations',
+        gapLabel: 'Employee lifecycle & onboarding operations'
+      },
+      {
+        id: 'hr_hrms',
+        name: 'HRMS Platforms & HR Reporting',
+        keywords: /\b(hrms|keka|workday|bamboohr|peoplesoft|excel|google sheets|attendance|leave|records|reporting)\b/i,
+        evidenceLabel: 'HRMS Platforms (Keka/Workday) & Data Reporting',
+        gapLabel: 'HRMS platforms & HR data management'
+      },
+      {
+        id: 'hr_payroll',
+        name: 'Payroll, TDS & Statutory Compliance',
+        keywords: /\b(payroll|salary|reimbursement|tds|\bpf\b|esic|statutory|epf|tax calculations)\b/i,
+        evidenceLabel: 'Payroll, TDS & Statutory Compliance (PF/ESIC)',
+        gapLabel: 'Payroll processing & statutory compliance (PF/ESIC/TDS)'
+      },
+      {
+        id: 'hr_relations',
+        name: 'Employee Relations & Labor Laws',
+        keywords: /\b(employee relations|labor law|labour laws|compliance|workplace|conflict resolution|disciplinary|grievance)\b/i,
+        evidenceLabel: 'Employee Relations & Labor Law Compliance',
+        gapLabel: 'Employee relations & statutory labor laws'
+      },
+      {
+        id: 'hr_recruitment',
+        name: 'Talent Acquisition & Recruitment',
+        keywords: /\b(recruitment|recruiting|hiring|talent acquisition|screening|interviewing|sourcing|ats)\b/i,
+        evidenceLabel: 'Talent Acquisition & Full-Cycle Recruitment',
+        gapLabel: 'Talent acquisition & recruitment operations'
+      }
+    ]
   },
   {
-    id: 'linux_systems',
-    name: 'Linux Systems & OS Internals',
-    jobKeywords: /\b(linux|unix|operating system|kernel|posix|systems administration|systems engineering|low[\s\-]?level)\b/i,
-    candidateKeywords: /\b(linux|ubuntu|kernel|bash|docker|c\+\+|systems|posix)\b/i,
-    evidenceLabel: 'Linux OS Internals & Systems Engineering',
-    gapLabel: 'Linux OS internals & administration'
+    discipline: 'Software & Systems Engineering',
+    keywords: /\b(software|developer|engineer|backend|frontend|full[\s\-]?stack|devops|\bsre\b|cloud architect|systems engineer|microservice|distributed|web application|programming|coding)\b/i,
+    competencies: [
+      {
+        id: 'swe_backend',
+        name: 'Distributed Backend & APIs',
+        keywords: /\b(backend|distributed|microservice|server|api|rest|grpc|trpc|graphql|node|java|go|python|spring|postgresql|mysql)\b/i,
+        evidenceLabel: 'Distributed Backend & API Architecture',
+        gapLabel: 'Distributed backend & server architecture'
+      },
+      {
+        id: 'swe_cloud',
+        name: 'Cloud Infrastructure & Scalability',
+        keywords: /\b(cloud|\baws\b|\bgcp\b|azure|kubernetes|k8s|docker|terraform|infrastructure|\bs3\b|\brds\b|redis|scaling)\b/i,
+        evidenceLabel: 'Cloud Infrastructure & Scalability (AWS/K8s)',
+        gapLabel: 'Cloud infrastructure & scalability'
+      },
+      {
+        id: 'swe_async',
+        name: 'Event Streaming & Concurrency',
+        keywords: /\b(kafka|event[\s\-]?driven|message queue|rabbitmq|pub[\/\-]sub|websocket|concurrency|throughput|low[\s\-]?latency)\b/i,
+        evidenceLabel: 'Event Streaming & Real-Time Concurrency',
+        gapLabel: 'Event streaming & asynchronous pipelines'
+      },
+      {
+        id: 'swe_reliability',
+        name: 'Reliability, Testing & Observability',
+        keywords: /\b(observability|telemetry|prometheus|grafana|loki|testing|ci[\/\-]cd|git|linux|debugging|monitoring|mttr)\b/i,
+        evidenceLabel: 'Observability, CI/CD & Reliability',
+        gapLabel: 'Testing, CI/CD & system observability'
+      },
+      {
+        id: 'swe_frontend',
+        name: 'Client Web Architecture & UI Systems',
+        keywords: /\b(react|typescript|javascript|frontend|next\.?js|html|css|tailwind|client state|ui components)\b/i,
+        evidenceLabel: 'Client Web Architecture & UI State',
+        gapLabel: 'Modern client web architecture & UI state'
+      }
+    ]
   },
   {
-    id: 'observability',
-    name: 'Observability & Telemetry',
-    jobKeywords: /\b(observability|telemetry|monitoring|metrics|instrumentation|prometheus|grafana|loki|datadog|opentelemetry|tracing|sli|slo)\b/i,
-    candidateKeywords: /\b(prometheus|grafana|loki|observability|telemetry|monitoring|datadog)\b/i,
-    evidenceLabel: 'Observability & Telemetry (Prometheus/Grafana)',
-    gapLabel: 'Observability, metrics & instrumentation'
+    discipline: 'Marketing & Communications',
+    keywords: /\b(marketing|\bseo\b|\bsem\b|social media|campaign|brand|content strategy|copywriting|growth|email marketing|advertising|\bppc\b|meta ads|google ads)\b/i,
+    competencies: [
+      {
+        id: 'mkt_seo',
+        name: 'SEO & Organic Growth',
+        keywords: /\b(seo|search engine|organic|keywords|ranking|traffic|backlinks|on[\s\-]?page)\b/i,
+        evidenceLabel: 'SEO & Organic Search Growth',
+        gapLabel: 'Search engine optimization (SEO)'
+      },
+      {
+        id: 'mkt_paid',
+        name: 'Paid Acquisition & Campaign ROI',
+        keywords: /\b(sem|ppc|google ads|meta ads|facebook ads|paid media|campaigns|ad spend|cac|roas)\b/i,
+        evidenceLabel: 'Paid Media & Performance Marketing',
+        gapLabel: 'Paid media & performance marketing'
+      },
+      {
+        id: 'mkt_content',
+        name: 'Content Strategy & Copywriting',
+        keywords: /\b(content|copywriting|editorial|creative|storytelling|messaging|blog|newsletter)\b/i,
+        evidenceLabel: 'Content Strategy & High-Conversion Copywriting',
+        gapLabel: 'Content strategy & copywriting'
+      },
+      {
+        id: 'mkt_analytics',
+        name: 'Marketing Analytics & Attribution',
+        keywords: /\b(analytics|google analytics|ga4|conversion rate|cro|funnel|attribution|metrics)\b/i,
+        evidenceLabel: 'Marketing Analytics & Growth Funnels',
+        gapLabel: 'Marketing analytics & conversion optimization'
+      }
+    ]
   },
   {
-    id: 'infrastructure_scale',
-    name: 'Infrastructure & Cloud Scale',
-    jobKeywords: /\b(infrastructure|virtual compute|cloud|aws|gcp|azure|terraform|kubernetes|k8s|deployment|orchestration)\b/i,
-    candidateKeywords: /\b(aws|cloud|kubernetes|docker|terraform|s3|rds|ec2)\b/i,
-    evidenceLabel: 'Cloud Infrastructure & Deployment (AWS/K8s)',
-    gapLabel: 'Technical infrastructure & deployment scale'
+    discipline: 'Design & Creative',
+    keywords: /\b(designer|ui[\/\-]ux|product design|user experience|visual design|graphic design|figma|prototyping|design system|creative director)\b/i,
+    competencies: [
+      {
+        id: 'des_uiux',
+        name: 'UI/UX & Interactive Prototyping',
+        keywords: /\b(ui|ux|interaction|wireframe|prototype|figma|user flow|mockups)\b/i,
+        evidenceLabel: 'UI/UX Craft & Interactive Prototyping',
+        gapLabel: 'UI/UX design & interactive prototyping'
+      },
+      {
+        id: 'des_system',
+        name: 'Design Systems & Component Libraries',
+        keywords: /\b(design system|tokens|components|modular|patterns|style guide|typography)\b/i,
+        evidenceLabel: 'Design Systems & Modular Components',
+        gapLabel: 'Design systems & component architecture'
+      },
+      {
+        id: 'des_research',
+        name: 'User Research & Usability Testing',
+        keywords: /\b(user research|usability|interviews|personas|heuristics|testing|feedback)\b/i,
+        evidenceLabel: 'User Research & Usability Validation',
+        gapLabel: 'User research & usability methodologies'
+      }
+    ]
   },
   {
-    id: 'iam_security',
-    name: 'Identity & Access (IAM) / Security',
-    jobKeywords: /\b(iam|identity|access management|oauth|oidc|sso|security|authentication|authorization|access control)\b/i,
-    candidateKeywords: /\b(oauth|authentication|authorization|webhook|security|idempotency)\b/i,
-    evidenceLabel: 'Identity & Access Management (IAM) / OAuth',
-    gapLabel: 'Identity and Access Management (IAM)'
+    discipline: 'Finance & Accounting',
+    keywords: /\b(finance|financial|accounting|accountant|auditing|taxation|balance sheet|p&l|general ledger|\bcpa\b|chartered accountant|budgeting)\b/i,
+    competencies: [
+      {
+        id: 'fin_reporting',
+        name: 'Financial Accounting & Reporting',
+        keywords: /\b(reporting|financial statements|general ledger|p&l|balance sheet|gaap|ifrs|accounting)\b/i,
+        evidenceLabel: 'Financial Accounting & Reporting Standards',
+        gapLabel: 'Financial accounting & ledger management'
+      },
+      {
+        id: 'fin_tax',
+        name: 'Taxation, Audit & Statutory Compliance',
+        keywords: /\b(tax|taxation|gst|audit|statutory|compliance|filing|deductions|regulatory)\b/i,
+        evidenceLabel: 'Tax Compliance, Auditing & Statutory Filings',
+        gapLabel: 'Tax planning & statutory compliance'
+      },
+      {
+        id: 'fin_modeling',
+        name: 'Budgeting & Financial Modeling',
+        keywords: /\b(budget|forecast|financial modeling|valuation|cash flow|projections|variance)\b/i,
+        evidenceLabel: 'Budgeting, Forecasting & Financial Modeling',
+        gapLabel: 'Financial modeling & forecasting'
+      }
+    ]
   },
   {
-    id: 'distributed_systems',
-    name: 'Distributed Systems & Scale',
-    jobKeywords: /\b(distributed|concurrency|websocket|throughput|rpc|grpc|consensus|scale|high scale)\b/i,
-    candidateKeywords: /\b(distributed|concurrency|websocket|throughput|microservice|kafka|1000\+)\b/i,
-    evidenceLabel: 'Distributed Systems & High Concurrency',
-    gapLabel: 'Distributed systems at scale'
+    discipline: 'Product & Project Management',
+    keywords: /\b(product manager|product management|scrum master|agile|product owner|roadmap|user stories|sprint)\b/i,
+    competencies: [
+      {
+        id: 'prd_strategy',
+        name: 'Product Vision & Strategic Roadmapping',
+        keywords: /\b(strategy|roadmap|vision|prioritization|okrs|feature definition|backlog)\b/i,
+        evidenceLabel: 'Product Strategy & Roadmap Prioritization',
+        gapLabel: 'Product vision & strategic roadmapping'
+      },
+      {
+        id: 'prd_agile',
+        name: 'Agile Delivery & Cross-Functional Execution',
+        keywords: /\b(agile|scrum|sprint|jira|delivery|cross[\s\-]?functional|execution|stakeholder)\b/i,
+        evidenceLabel: 'Agile Execution & Cross-Functional Delivery',
+        gapLabel: 'Agile & sprint delivery coordination'
+      },
+      {
+        id: 'prd_analytics',
+        name: 'Product Analytics & User Retention',
+        keywords: /\b(metrics|kpis|retention|funnel|churn|amplitude|mixpanel|launch|experimentation)\b/i,
+        evidenceLabel: 'Product Telemetry & Metric Optimization',
+        gapLabel: 'Product analytics & KPI tracking'
+      }
+    ]
   },
   {
-    id: 'event_driven',
-    name: 'Kafka & Event-Driven Systems',
-    jobKeywords: /\b(kafka|event[\s\-]?driven|message queue|pub[\s\-]?sub|rabbitmq|sqs|kinesis)\b/i,
-    candidateKeywords: /\b(kafka|event[\s\-]?driven|message queue|pubsub|redis)\b/i,
-    evidenceLabel: 'Kafka & Event-Driven Pipelines',
-    gapLabel: 'Kafka / event-driven message architectures'
+    discipline: 'Sales & Business Development',
+    keywords: /\b(sales|business development|account executive|\bsdr\b|\bbdr\b|lead generation|pipeline|quota|\bcrm\b|salesforce)\b/i,
+    competencies: [
+      {
+        id: 'sls_pipeline',
+        name: 'Pipeline Generation & Outbound Prospecting',
+        keywords: /\b(prospecting|outbound|leads|pipeline|cold outreach|discovery|qualification)\b/i,
+        evidenceLabel: 'Pipeline Generation & Outbound Prospecting',
+        gapLabel: 'Pipeline development & lead generation'
+      },
+      {
+        id: 'sls_closing',
+        name: 'Deal Closing & Contract Negotiation',
+        keywords: /\b(closing|negotiation|contract|quota|deals|conversion|revenue)\b/i,
+        evidenceLabel: 'Contract Negotiation & Deal Closing',
+        gapLabel: 'Deal negotiation & closing execution'
+      },
+      {
+        id: 'sls_crm',
+        name: 'CRM Management & Revenue Forecasting',
+        keywords: /\b(crm|salesforce|hubspot|forecasting|pipeline management|revenue)\b/i,
+        evidenceLabel: 'CRM Management & Revenue Forecasting',
+        gapLabel: 'CRM administration & pipeline hygiene'
+      }
+    ]
   },
   {
-    id: 'backend_apis',
-    name: 'Backend API Architecture',
-    jobKeywords: /\b(backend|api|rest|microservice|java|spring|node|express|fastapi|graphql)\b/i,
-    candidateKeywords: /\b(backend|api|rest|microservice|node|express|spring|postgres|sql)\b/i,
-    evidenceLabel: 'Backend API Architecture & Contracts',
-    gapLabel: 'Enterprise backend API services'
-  },
-  {
-    id: 'ai_ml',
-    name: 'AI & Machine Learning',
-    jobKeywords: /\b(ai\b|machine learning|ml\b|llm|deep learning|nlp|computer vision|pytorch|tensorflow|model)\b/i,
-    candidateKeywords: /\b(catboost|ai|ml|machine learning|python|openai|model|auc)\b/i,
-    evidenceLabel: 'AI/ML Engineering & Model Optimization',
-    gapLabel: 'Production AI/ML models'
-  },
-  {
-    id: 'networking_debugging',
-    name: 'Networking & Debugging',
-    jobKeywords: /\b(networking|debugging|troubleshooting|on[\s\-]?call|incident|tcp|dns|http|latency|post[\s\-]?mortem)\b/i,
-    candidateKeywords: /\b(networking|troubleshooting|debugging|incident|mttr|latency|websocket|http)\b/i,
-    evidenceLabel: 'Networking, Debugging & Incident Triage',
-    gapLabel: 'Low-level networking & troubleshooting'
+    discipline: 'General Professional',
+    keywords: /.*/i,
+    competencies: [
+      {
+        id: 'gen_exec',
+        name: 'Core Role Deliverables & Execution',
+        keywords: /\b(execution|deliverables|management|coordination|implementation|operations)\b/i,
+        evidenceLabel: 'Core Role Deliverables & Execution',
+        gapLabel: 'Core role domain deliverables'
+      },
+      {
+        id: 'gen_domain',
+        name: 'Specialized Domain Expertise',
+        keywords: /\b(specialized|domain|expertise|methodology|standards|knowledge)\b/i,
+        evidenceLabel: 'Specialized Domain Competency',
+        gapLabel: 'Specialized domain qualifications'
+      },
+      {
+        id: 'gen_collab',
+        name: 'Stakeholder Alignment & Communication',
+        keywords: /\b(communication|collaboration|teamwork|stakeholder|presentation|interpersonal)\b/i,
+        evidenceLabel: 'Cross-Functional Stakeholder Alignment',
+        gapLabel: 'Stakeholder alignment & communication'
+      },
+      {
+        id: 'gen_quality',
+        name: 'Problem Solving & Operational Standards',
+        keywords: /\b(problem[\s\-]?solving|quality|analytical|troubleshooting|results|standards)\b/i,
+        evidenceLabel: 'Analytical Problem Solving & Quality',
+        gapLabel: 'Operational quality & problem-solving'
+      }
+    ]
   }
 ];
 
-export function analyzeJobDomains(fullJobText: string, resumeText: string, techScore: number) {
-  const matchedDomains = DOMAIN_CATALOG.filter(d => d.jobKeywords.test(fullJobText));
-  const selectedDomains = matchedDomains.slice(0, 4);
+// ── Detect Professional Discipline ──
+export function detectDiscipline(text: string, titleHint: string = ''): ProfessionalDiscipline {
+  const title = (titleHint || '').toLowerCase();
+  
+  if (/\b(human resources|\bhr\b|hrms|recruiter|recruitment|talent acquisition|people operations|payroll|generalist)\b/i.test(title)) {
+    return 'Human Resources';
+  }
+  if (/\b(software|developer|engineer|backend|frontend|full[\s\-]?stack|devops|\bsre\b|cloud architect|firmware)\b/i.test(title)) {
+    return 'Software & Systems Engineering';
+  }
+  if (/\b(data analyst|data scientist|machine learning|deep learning|ai engineer|bi analyst)\b/i.test(title)) {
+    return 'Data, Analytics & AI';
+  }
+  if (/\b(marketing|\bseo\b|content strategist|growth|copywriter|social media|advertising|brand manager)\b/i.test(title)) {
+    return 'Marketing & Communications';
+  }
+  if (/\b(designer|ui[\/\-]ux|product designer|graphic designer|creative director)\b/i.test(title)) {
+    return 'Design & Creative';
+  }
+  if (/\b(product manager|product owner|scrum master|technical product)\b/i.test(title)) {
+    return 'Product & Project Management';
+  }
+  if (/\b(accountant|accounting|finance|financial analyst|auditor|tax)\b/i.test(title)) {
+    return 'Finance & Accounting';
+  }
+  if (/\b(sales|business development|account executive|\bsdr\b|\bbdr\b)\b/i.test(title)) {
+    return 'Sales & Business Development';
+  }
 
-  // If fewer than 4 matched, fill with complementary high-signal domains
-  if (selectedDomains.length < 4) {
-    for (const d of DOMAIN_CATALOG) {
-      if (!selectedDomains.some(s => s.id === d.id)) {
-        selectedDomains.push(d);
-        if (selectedDomains.length >= 4) break;
-      }
+  const combined = `${titleHint} ${titleHint} ${text}`.toLowerCase();
+  let bestDiscipline: ProfessionalDiscipline = 'General Professional';
+  let maxHits = 0;
+
+  for (const item of DISCIPLINE_CATALOG) {
+    if (item.discipline === 'General Professional') continue;
+    const matches = combined.match(new RegExp(item.keywords.source, 'gi'));
+    const count = matches ? matches.length : 0;
+    if (count > maxHits && count >= 2) {
+      maxHits = count;
+      bestDiscipline = item.discipline;
     }
   }
 
-  const technicalAlignment = selectedDomains.map((d, index) => {
-    const candidateHasSkill = d.candidateKeywords.test(resumeText);
-    const basePct = candidateHasSkill ? 86 - index * 3 : 62 - index * 5;
-    const finalPct = Math.min(95, Math.max(50, Math.round(basePct + (techScore - 2.5) * 5)));
+  return bestDiscipline;
+}
+
+// ── Dynamic Cross-Domain Competency Analyzer ──
+export function analyzeCompetencies(
+  jobText: string,
+  candidateText: string,
+  jobDiscipline: ProfessionalDiscipline,
+  candidateDiscipline: ProfessionalDiscipline,
+  techScore: number
+) {
+  const isDisciplineMismatch =
+    jobDiscipline !== 'General Professional' &&
+    candidateDiscipline !== 'General Professional' &&
+    jobDiscipline !== candidateDiscipline;
+
+  const catalogEntry = DISCIPLINE_CATALOG.find(d => d.discipline === jobDiscipline) ||
+    DISCIPLINE_CATALOG.find(d => d.discipline === 'General Professional')!;
+
+  const competencies = catalogEntry.competencies.slice(0, 4);
+
+  const competencyAlignment = competencies.map((comp, idx) => {
+    if (isDisciplineMismatch) {
+      const mismatchPct = Math.max(6, Math.min(20, Math.round(12 - idx * 2 + Math.random() * 3)));
+      return {
+        skill: comp.name,
+        percentage: mismatchPct
+      };
+    }
+
+    const candHits = (candidateText.match(new RegExp(comp.keywords.source, 'gi')) || []).length;
+    const jobHits = (jobText.match(new RegExp(comp.keywords.source, 'gi')) || []).length;
+
+    let basePct: number;
+    if (candHits >= 3) {
+      basePct = 86 + Math.min(8, candHits);
+    } else if (candHits >= 1) {
+      basePct = 72 + candHits * 5;
+    } else if (jobHits > 0) {
+      basePct = 42 + Math.min(10, Math.round((techScore / 4) * 10));
+    } else {
+      basePct = 52 + Math.round((techScore / 4) * 12);
+    }
+    const finalPct = Math.min(95, Math.max(30, Math.round(basePct + (techScore - 2.5) * 3)));
     return {
-      skill: d.name,
+      skill: comp.name,
       percentage: finalPct
     };
   });
 
   const evidence: Array<{ text: string; tag: string; status: 'strong' | 'good' | 'stretch' | 'mismatch'; isStretch?: boolean }> = [];
-  for (const d of selectedDomains) {
-    const candidateHasSkill = d.candidateKeywords.test(resumeText);
-    if (candidateHasSkill) {
+
+  if (isDisciplineMismatch) {
+    evidence.push({
+      text: `Discipline mismatch: Candidate is in ${candidateDiscipline} vs role in ${jobDiscipline}`,
+      tag: 'Discipline gap',
+      status: 'mismatch',
+      isStretch: true
+    });
+
+    for (const comp of competencies.slice(0, 3)) {
       evidence.push({
-        text: d.evidenceLabel,
-        tag: 'Strong match',
-        status: 'strong'
-      });
-    } else {
-      evidence.push({
-        text: d.gapLabel,
-        tag: 'Learning curve',
-        status: 'stretch',
+        text: `Missing: ${comp.gapLabel}`,
+        tag: 'Core gap',
+        status: 'mismatch',
         isStretch: true
       });
     }
+  } else {
+    for (const comp of competencies) {
+      const candHits = (candidateText.match(new RegExp(comp.keywords.source, 'gi')) || []).length;
+      if (candHits >= 2 && techScore >= 2.5) {
+        evidence.push({
+          text: comp.evidenceLabel,
+          tag: 'Strong match',
+          status: 'strong'
+        });
+      } else if (candHits >= 1) {
+        evidence.push({
+          text: comp.evidenceLabel,
+          tag: 'Solid match',
+          status: 'good'
+        });
+      } else {
+        evidence.push({
+          text: comp.gapLabel,
+          tag: 'Learning curve',
+          status: 'stretch',
+          isStretch: true
+        });
+      }
+    }
   }
 
-  return { technicalAlignment, evidence };
+  return { competencyAlignment, evidence, isDisciplineMismatch };
 }
 
-// ── Holistic Context Subagent Processor ──
+// ── Holistic Context Subagent Processor (Universal) ──
 export function runContextSubagent(job: Partial<JobListing>, resume: CandidateResume) {
-  const title = job.title || 'Software Engineer';
+  const title = job.title || 'Role Opportunity';
   const company = job.company || 'Company';
   const location = job.location || 'Remote / Hybrid';
   const salary = job.salary || 'Disclosed in interview';
@@ -523,68 +729,85 @@ export function runContextSubagent(job: Partial<JobListing>, resume: CandidateRe
   const fullJobText = `${title} ${company} ${job.description || ''} ${job.coreMission || ''} ${job.engineeringDemands || ''}`;
   const expInfo = extractJobExperienceDemands(fullJobText, title);
 
+  const jobDiscipline = detectDiscipline(fullJobText, title);
+  const candidateDiscipline = resume.candidateDiscipline || detectDiscipline(resume.fullResumeText || '', resume.targetRole || '');
+
+  const isDisciplineMismatch =
+    jobDiscipline !== 'General Professional' &&
+    candidateDiscipline !== 'General Professional' &&
+    jobDiscipline !== candidateDiscipline;
+
   const autonomyLevel = expInfo.isSenior
-    ? 'Lead / Senior Autonomous IC'
-    : (expInfo.isJunior ? 'Foundational / Mentored IC' : 'Autonomous IC');
+    ? 'Lead / Senior Autonomous Scope'
+    : (expInfo.isJunior ? 'Foundational / Mentored Scope' : 'Autonomous Professional Scope');
 
-  const coreMission = job.coreMission || job.description?.slice(0, 450) || 'Deliver scalable features and resilient software architectures.';
-  const engineeringDemands = job.engineeringDemands || job.description?.slice(0, 450) || 'Technical ownership, reliable code quality, and problem-solving.';
-  const cultureReality = job.cultureReality || 'Professional engineering team culture.';
+  const coreMission = job.coreMission || job.description?.slice(0, 450) || 'Execute core functional deliverables and operational priorities.';
+  const roleDemands = job.engineeringDemands || job.description?.slice(0, 450) || 'Role ownership, quality standards, and problem-solving.';
 
-  // Synthesize rich, dense qualitative engineering state for Jev System One
   const candidateName = resume.name || 'Candidate';
   const candidateTier = resume.seniorityTier || 'Mid-Level';
   const candidateYears = resume.experienceYears ?? 1.5;
-  const candidateArchetype = resume.engineeringArchetype || `${candidateTier} Engineer`;
-  const candidateScale = resume.demonstratedScaleAndScope || 'Demonstrated production systems delivery and execution.';
-  const candidateAutonomy = resume.autonomyTrackRecord || 'Autonomous IC executing end-to-end features.';
+  const candidateArchetype = resume.engineeringArchetype || `${candidateTier} ${candidateDiscipline} Professional`;
+  const candidateScale = resume.demonstratedScaleAndScope || 'Demonstrated execution of core role responsibilities.';
+  const candidateAutonomy = resume.autonomyTrackRecord || 'Autonomous execution of professional deliverables.';
   const candidateDomains = Array.isArray(resume.primaryTechnicalDomains) && resume.primaryTechnicalDomains.length
     ? resume.primaryTechnicalDomains
-    : ['Full-Stack Systems', 'API Architecture', 'Distributed Systems'];
-  const candidateText = resume.summary || (resume.fullResumeText ? resume.fullResumeText.slice(0, 450) : 'Experienced software developer.');
+    : [candidateDiscipline];
+  const candidateText = resume.fullResumeText ? resume.fullResumeText.slice(0, 450) : 'Experienced professional.';
 
   const synthesizedState = `
-ROLE ARCHITECTURE & SCOPE SPECIFICATION:
+ROLE SPECIFICATION:
 Position: ${title}
 Organization: ${company} [${location}]
-Experience Requirement: ${expInfo.hasExplicitYears ? `${expInfo.requiredExpStr} (explicitly required)` : `${expInfo.requiredExpStr} (no calendar years mentioned; evaluated on systems complexity, architecture, and autonomy expectations)`}
+Professional Field: ${jobDiscipline}
+Experience Requirement: ${expInfo.hasExplicitYears ? `${expInfo.requiredExpStr} (explicitly mandated)` : `${expInfo.requiredExpStr} (scope-based evaluation)`}
 Seniority & Autonomy Demand: ${autonomyLevel}
-Core Engineering Mission: ${coreMission}
-Day-to-Day Technical Demands: ${engineeringDemands}
+Core Mission: ${coreMission}
+Day-to-Day Operational Demands: ${roleDemands}
 Hiring Timeline Signals: Posted ${postedDaysAgo}d ago, Reposted ${repostCount} times, ${applicantCount} applicants.
 
-CANDIDATE DEMONSTRATED ENGINEERING PROFILE:
+CANDIDATE DEMONSTRATED PROFILE:
 Candidate: ${candidateName}
-Seniority Tier: ${candidateTier} (${candidateYears} years verified engineering experience)
-Engineering Archetype: ${candidateArchetype}
-Demonstrated Scale & Systems Complexity: ${candidateScale}
-Autonomy & Leadership Track Record: ${candidateAutonomy}
-Primary Engineering Domains: ${candidateDomains.join('; ')}
+Professional Field: ${candidateDiscipline}
+Current / Target Role: ${resume.targetRole}
+Seniority Tier: ${candidateTier} (${candidateYears} years verified experience)
+Professional Profile: ${candidateArchetype}
+Demonstrated Scope & Accomplishments: ${candidateScale}
+Autonomy & Execution: ${candidateAutonomy}
+Key Competencies: ${candidateDomains.join('; ')}
 Candidate Background: ${candidateText}
 
-CONTEXT SUBAGENT CALIBRATION:
-1. Experience Alignment:
-   Candidate has ${candidateYears} years experience.
-   ${!expInfo.hasExplicitYears
+CROSS-DOMAIN & QUALIFICATION CALIBRATION:
+1. Field Alignment:
+   ${isDisciplineMismatch
+     ? `CRITICAL DISCIPLINE MISMATCH: Candidate's field is "${candidateDiscipline}", but the role is in "${jobDiscipline}". A ${resume.targetRole} applying to a ${title} lacks the requisite professional credentials, operational methods, and domain compliance. Verdict MUST be skill_mismatch.`
+     : `FIELD ALIGNMENT: Candidate and role are both within "${jobDiscipline}". Evaluate based on competency depth, project scale, and seniority requirements.`
+   }
+2. Experience Alignment:
+   Candidate has ${candidateYears} years experience vs role demand (${expInfo.requiredExpStr}).
+   ${!isDisciplineMismatch && !expInfo.hasExplicitYears
      ? (expInfo.isSenior
-       ? `Role title indicates Senior IC expectations, but calendar years are not explicitly mandated. Candidate brings 1.5y with verified Kafka/AWS/K8s production deliverables. This is a Strategic Reach (reach_apply): candidate can contend if the team prioritizes high-scale deliverables and problem-solving over strict senior tenure.`
+       ? `Role title indicates Senior scope. Candidate brings verified deliverables. If deliverables compensate for years, this is a Strategic Reach (reach_apply).`
        : (expInfo.isJunior
-         ? `Role has junior scope with unstated years. Candidate directly meets and exceeds technical expectations with production internship experience.`
-         : `Posting has no tenure filter. Candidate is evaluated on stack synergy, architecture, and problem-solving caliber.`
+         ? `Role has junior scope. Candidate directly meets and exceeds functional expectations.`
+         : `Posting is scope-based. Candidate is evaluated on competency synergy.`
        )
      )
-     : (candidateYears < expInfo.minYears
-       ? `Candidate is below formal tenure requirement (${expInfo.requiredExpStr}). Reach apply if systems complexity bridges the gap.`
-       : `Candidate fully satisfies experience requirement (${expInfo.requiredExpStr}).`
-     )
+     : ''
    }
-2. Complexity Parity: Evaluated candidate track record (${candidateScale}) against role deliverables (${coreMission}).
-3. Transferable Capabilities: Candidate brings proven depth in ${candidateDomains.slice(0, 2).join(' and ')}; technical adaptability is high.
+3. Screening Feasibility:
+   ${isDisciplineMismatch
+     ? `Non-transferable field. Candidate will not pass initial recruiter or hiring manager screening for this ${jobDiscipline} role.`
+     : `Direct domain transferability. Candidate brings verified deliverables in target field.`
+   }
 `.trim();
 
   return {
     expInfo,
     synthesizedState,
+    jobDiscipline,
+    candidateDiscipline,
+    isDisciplineMismatch,
     candidateArchetype,
     roleDemandsSummary: coreMission,
     autonomyLevel
@@ -612,104 +835,77 @@ app.post('/api/scan-job', async (req, res) => {
     return res.status(400).json({ error: 'Job listing object is required' });
   }
 
-  const fallbackCandidate = (resume && PERSONAS[resume]) || PERSONAS['gaurav'] || PERSONAS['alex'];
-  const rawName = customResume?.name || fallbackCandidate.name || 'Gaurav';
-  const cleanName = /indian|institute|college|university|custom profile|candidate/i.test(rawName) ? 'Gaurav' : rawName;
+  if (!job.coreMission && job.description) {
+    job.coreMission = job.description.slice(0, 450);
+  }
+  if (!job.engineeringDemands && job.description) {
+    job.engineeringDemands = job.description.slice(0, 450);
+  }
+
+  const fallbackCandidate = (resume && PERSONAS[resume]) || PERSONAS['alex'];
+  const rawName = customResume?.name || fallbackCandidate?.name || 'Candidate';
+  const cleanName = /indian|institute|college|university|custom profile/i.test(rawName) ? 'Candidate' : rawName;
+
+  const fullResumeText = customResume?.fullResumeText || fallbackCandidate?.fullResumeText || '';
+  const detectedCandidateDiscipline = customResume?.candidateDiscipline ||
+    detectDiscipline(fullResumeText, customResume?.targetRole || fallbackCandidate?.targetRole || '');
 
   const candidate: CandidateResume = {
     ...fallbackCandidate,
     ...(customResume || {}),
     name: cleanName,
-    experienceYears: customResume?.experienceYears ?? fallbackCandidate.experienceYears ?? 1.5,
-    seniorityTier: customResume?.seniorityTier || fallbackCandidate.seniorityTier || 'Junior',
+    experienceYears: customResume?.experienceYears ?? fallbackCandidate?.experienceYears ?? 1.5,
+    seniorityTier: customResume?.seniorityTier || fallbackCandidate?.seniorityTier || 'Junior',
+    candidateDiscipline: detectedCandidateDiscipline,
     primaryTechnicalDomains: (customResume?.primaryTechnicalDomains && customResume.primaryTechnicalDomains.length)
       ? customResume.primaryTechnicalDomains
-      : fallbackCandidate.primaryTechnicalDomains,
-    fullResumeText: customResume?.fullResumeText || fallbackCandidate.fullResumeText || ''
+      : (fallbackCandidate?.primaryTechnicalDomains || [detectedCandidateDiscipline]),
+    fullResumeText
   };
+
   const t0 = Date.now();
 
   try {
-    // 1. Run Holistic Context Subagent
     const subagent = runContextSubagent(job, candidate);
     const expInfo = subagent.expInfo;
-
-    // Extract matched skills and domain nuances
     const fullJobText = `${job.title || ''} ${job.company || ''} ${job.description || ''} ${job.coreMission || ''} ${job.engineeringDemands || ''}`;
-    const matchedDeliverables: string[] = [];
-    const domainGaps: string[] = [];
     const resumeText = candidate.fullResumeText || '';
 
-    if (/kafka|message queue|event-driven/i.test(fullJobText) && /kafka/i.test(resumeText)) {
-      matchedDeliverables.push('Kafka & Event-Driven Pipelines (Direct production match)');
-    }
-    if (/aws|cloud|s3|rds|redis/i.test(fullJobText) && /aws/i.test(resumeText)) {
-      matchedDeliverables.push('AWS Cloud-Native Architecture & Caching (Direct match)');
-    }
-    if (/concurrency|websocket|throughput|scale|real-time/i.test(fullJobText) && /concurrency|websocket|throughput/i.test(resumeText)) {
-      matchedDeliverables.push('High-Concurrency & WebSocket Systems (1000+ connections match)');
-    }
-    if (/ai|cursor|copilot|claude|llm|python/i.test(fullJobText) && /ai|catboost|openai|ml|python/i.test(resumeText)) {
-      matchedDeliverables.push('AI Product Development & Python/ML Tools (Direct match)');
-    }
-    if (/api|rest|microservice/i.test(fullJobText) && /rest|api|microservice|trpc/i.test(resumeText)) {
-      matchedDeliverables.push('Backend API Contracts & Service Architecture');
-    }
-
-    if (/video|streaming|cdn|hls|drm/i.test(fullJobText) && !/streaming|drm|hls/i.test(resumeText)) {
-      domainGaps.push('Video Streaming & CDN/DRM Protocols (Media domain learning curve)');
-    }
-    if (/embedded|hardware|c\+\+|firmware/i.test(fullJobText) && !/embedded|hardware|firmware/i.test(resumeText)) {
-      domainGaps.push('Embedded / Hardware Systems requirement');
-    }
-
-    // Default fallback if no specialized keyword
-    if (matchedDeliverables.length === 0) {
-      matchedDeliverables.push('Backend Core Architecture & API Implementation', 'Database & Cloud Integration');
-    }
-
-    // 2. Call Jev System One with Speculative Fan-out for Tactical Career Decisions
+    // Call Jev System One with Speculative Fan-out for Tactical Career Decisions
     const response = await client.systemOne({
       state: subagent.synthesizedState,
       questions: {
-        // Choice: Tactical Application Verdict
         decision_verdict: choice(
           'What is the tactical application recommendation for this candidate regarding this specific job opportunity?',
           {
-            can_apply: 'Strong fit — candidate technical depth, systems experience, and deliverables align well with role expectations; high probability of technical interview success',
-            reach_apply: 'Strategic reach — candidate is slightly below the formal years requirement (e.g. 1.5y vs 2-4y), but their demonstrated systems complexity (Kafka, AWS, concurrency) makes them a strong competitive applicant',
-            experience_mismatch: 'Severe experience mismatch — role requires seasoned Staff/Lead (5+ to 8+ years) and will filter on tenure',
-            skill_mismatch: 'Discipline or tech mismatch — role requires a completely different engineering domain (e.g. embedded C, hardware, sales engineering)'
+            can_apply: 'Strong fit — candidate background, qualifications, and core deliverables align well with role expectations; high probability of landing interview',
+            reach_apply: 'Strategic reach — candidate is in the right professional discipline but is slightly below the formal years requirement; proven deliverables make them a viable applicant',
+            experience_mismatch: 'Seniority mismatch — candidate is in the correct discipline but the role mandates significantly higher (or lower) seniority with hard tenure filters',
+            skill_mismatch: 'Discipline or field mismatch — role is in a completely different professional discipline (e.g. software engineer applying for HR, marketing, or finance) or requires non-transferable domain credentials'
           }
         ),
-
-        // Score: Technical Systems & Architecture Match (0 to 4)
         technical_match_score: score(
-          'Rate the technical systems and architectural match between what this candidate has built (Kafka, AWS, WebSockets, microservices) and what the role demands.',
+          'Rate the functional and domain competency match between what this candidate brings and what the role demands.',
           [
-            'Complete mismatch in technical stack or problem domain',
-            'Limited overlap — requires major retraining',
-            'Moderate overlap — candidate knows fundamentals but lacks production exposure to the core stack',
-            'High systems alignment — candidate has solved the exact same category of backend and concurrency challenges',
-            'Flawless technical synergy — immediate production contribution on day one'
+            'Complete mismatch in professional discipline or problem domain',
+            'Minimal overlap — requires fundamental domain retraining',
+            'Moderate overlap — transferable skills exist, but candidate lacks specialized core experience',
+            'High competency alignment — candidate has solved the exact category of domain challenges',
+            'Flawless synergy — immediate production contribution on day one'
           ]
         ),
-
-        // Score: Experience Feasibility (0 to 4)
         experience_feasibility: score(
-          'Evaluate how feasibly the candidate bridges the formal experience requirement based on verified deliverables and systems complexity vs calendar years.',
+          'Evaluate how feasibly the candidate meets the seniority and experience expectations.',
           [
-            'Impassable gap — company will auto-reject due to hard senior tenure filters',
-            'Steep gap — candidate would struggle with team autonomy expectations',
-            'Manageable stretch — candidate compensates for slight tenure deficit with exceptional systems deliverables',
-            'Negligible gap — demonstrated scale and IIT/competitive pedigree fully offset the calendar difference',
-            'Zero gap — candidate operates above the role requirements'
+            'Impassable gap — company auto-rejects due to hard senior tenure filters or discipline barrier',
+            'Steep gap — candidate would struggle with team autonomy expectations at this level',
+            'Manageable stretch — candidate compensates for slight tenure deficit with strong proven deliverables',
+            'Negligible gap — demonstrated scale fully offsets calendar differences',
+            'Zero gap — candidate operates at or above the role requirements'
           ]
         ),
-
-        // Noul: Probability of passing technical screen / landing interview (0 to 1)
         interview_probability: noul(
-          'Based on candidate demonstrated technical deliverables and problem-solving caliber, is there a high probability (0 to 1) of candidate passing the technical screen?'
+          'Based on candidate credentials, domain alignment, and problem-solving caliber, what is the probability (0 to 1) of landing a screening interview?'
         )
       }
     });
@@ -717,33 +913,55 @@ app.post('/api/scan-job', async (req, res) => {
     const ms = Date.now() - t0;
     const a = response.answers as any;
 
-    const verdictChoice = a.decision_verdict?.choice ?? 'reach_apply';
-    const verdictConfidence = a.decision_verdict?.confidence ?? 0.9;
-    const techScore = a.technical_match_score?.score ?? 3.0;
-    const expScore = a.experience_feasibility?.score ?? 2.5;
-    const interviewOdds = a.interview_probability?.noul ?? 0.8;
+    let verdictChoice = a.decision_verdict?.choice ?? (subagent.isDisciplineMismatch ? 'skill_mismatch' : 'reach_apply');
+    if (subagent.isDisciplineMismatch) {
+      verdictChoice = 'skill_mismatch';
+    }
+
+    const verdictConfidence = a.decision_verdict?.confidence ?? 0.92;
+    const techScore = a.technical_match_score?.score ?? (subagent.isDisciplineMismatch ? 0.1 : 2.8);
+    const expScore = a.experience_feasibility?.score ?? (subagent.isDisciplineMismatch ? 0.8 : 2.5);
+    const interviewOdds = a.interview_probability?.noul ?? (subagent.isDisciplineMismatch ? 0.08 : 0.65);
 
     // Derived Match Percentage (0 - 100%)
-    const matchPercentage = Math.round(
-      ((techScore / 4) * 0.5 + (expScore / 4) * 0.25 + interviewOdds * 0.25) * 100
-    );
+    let matchPercentage: number;
+    if (subagent.isDisciplineMismatch) {
+      matchPercentage = Math.max(6, Math.min(18, Math.round(techScore * 5 + interviewOdds * 25 + 5)));
+    } else {
+      matchPercentage = Math.round(
+        ((techScore / 4) * 0.5 + (expScore / 4) * 0.25 + interviewOdds * 0.25) * 100
+      );
+    }
 
-    // Build Structured Evidence Rows ("Why this verdict") & Dynamic Technical Alignment
-    const { technicalAlignment, evidence: domainEvidence } = analyzeJobDomains(fullJobText, resumeText, techScore);
+    // Dynamic Competency Analysis (No hardcoded 10 engineering domains!)
+    const { competencyAlignment, evidence: domainEvidence } = analyzeCompetencies(
+      fullJobText,
+      resumeText,
+      subagent.jobDiscipline,
+      subagent.candidateDiscipline,
+      techScore
+    );
 
     const evidence = [...domainEvidence];
 
-    // Add experience gap / stretch item
     const isReach = verdictChoice === 'reach_apply';
     const isMismatch = verdictChoice === 'experience_mismatch' || verdictChoice === 'skill_mismatch';
-    if (isReach) {
+
+    if (subagent.isDisciplineMismatch) {
+      evidence.push({
+        text: `Field disconnect (${candidate.candidateDiscipline} vs ${subagent.jobDiscipline})`,
+        tag: 'Discipline gap',
+        status: 'mismatch',
+        isStretch: true
+      });
+    } else if (isReach) {
       evidence.push({
         text: `Less formal experience (${candidate.experienceYears} yrs vs ${expInfo.requiredExpStr || '3–5 yrs'})`,
         tag: 'Manageable stretch',
         status: 'stretch',
         isStretch: true
       });
-    } else if (isMismatch) {
+    } else if (verdictChoice === 'experience_mismatch') {
       evidence.push({
         text: `Formal tenure gap (${candidate.experienceYears} yrs vs ${expInfo.requiredExpStr || '5+ yrs'})`,
         tag: 'Tenure gap',
@@ -758,7 +976,6 @@ app.post('/api/scan-job', async (req, res) => {
       });
     }
 
-    // Experience Comparison Spec
     const reqDisplay = expInfo.hasExplicitYears
       ? expInfo.requiredExpStr.replace(' years', ' yrs')
       : (expInfo.isSenior ? '3 – 5 yrs' : (expInfo.isJunior ? '0 – 2 yrs' : '2 – 4 yrs'));
@@ -766,31 +983,52 @@ app.post('/api/scan-job', async (req, res) => {
     const experienceComparison = {
       required: reqDisplay,
       candidate: `${candidate.experienceYears} yrs`,
-      evaluationType: expInfo.hasExplicitYears ? 'YEARS-FILTER' : 'SCOPE-BASED',
-      note: isReach
-        ? 'Scope-based evaluation · Manageable stretch'
-        : (isMismatch ? 'Strict tenure filters · High screening barrier' : 'Direct experience match · Fully qualified')
+      evaluationType: subagent.isDisciplineMismatch
+        ? 'DISCIPLINE-BARRIER'
+        : (expInfo.hasExplicitYears ? 'YEARS-FILTER' : 'SCOPE-BASED'),
+      note: subagent.isDisciplineMismatch
+        ? `Non-transferable field · Direct discipline barrier`
+        : (isReach
+          ? 'Scope-based evaluation · Manageable stretch'
+          : (isMismatch ? 'Strict tenure filters · High screening barrier' : 'Direct experience match · Fully qualified'))
     };
 
-    const verdictHeadline = verdictChoice === 'can_apply'
-      ? 'STRONG FIT'
-      : (verdictChoice === 'reach_apply'
-        ? 'REACH APPLY'
-        : (verdictChoice === 'experience_mismatch' ? 'EXP MISMATCH' : 'SKILL MISMATCH'));
+    let verdictHeadline = 'STRONG FIT';
+    let verdictSubtext = 'Core qualifications and deliverables strongly match role expectations.';
+    let badgeLabel = 'DIRECT FIT';
 
-    const verdictSubtext = verdictChoice === 'can_apply'
-      ? 'Technical depth and deliverables strongly match role expectations.'
-      : (verdictChoice === 'reach_apply'
-        ? 'Technical match is strong; experience is the main stretch.'
-        : (verdictChoice === 'experience_mismatch'
-          ? 'Hard senior tenure filter likely to flag application automatically.'
-          : 'Distinct engineering discipline and core tech stack.'));
+    if (subagent.isDisciplineMismatch || verdictChoice === 'skill_mismatch') {
+      verdictHeadline = 'DISCIPLINE MISMATCH';
+      verdictSubtext = `Candidate background in ${candidate.candidateDiscipline} does not align with ${subagent.jobDiscipline} role expectations.`;
+      badgeLabel = 'DISCIPLINE GAP';
+    } else if (verdictChoice === 'reach_apply') {
+      verdictHeadline = 'REACH APPLY';
+      verdictSubtext = 'Competency match is strong; experience scope is the main stretch.';
+      badgeLabel = 'COMPETITIVE CONTENDER';
+    } else if (verdictChoice === 'experience_mismatch') {
+      verdictHeadline = 'EXP MISMATCH';
+      verdictSubtext = 'Hard senior tenure filter likely to flag application automatically.';
+      badgeLabel = 'TENURE FILTER';
+    }
 
-    const badgeLabel = verdictChoice === 'can_apply'
-      ? 'DIRECT FIT'
-      : (verdictChoice === 'reach_apply'
-        ? 'COMPETITIVE CONTENDER'
-        : (verdictChoice === 'experience_mismatch' ? 'TENURE FILTER' : 'DISCIPLINE GAP'));
+    // Dynamic Deep Rationale
+    let rationale = '';
+    if (subagent.isDisciplineMismatch) {
+      rationale = `This position is a ${job.title} in ${subagent.jobDiscipline} at ${job.company}, requiring domain expertise in ${competencyAlignment.map(c => c.skill).slice(0, 3).join(', ')}. The candidate's background is in ${candidate.candidateDiscipline} (${candidate.targetRole}). Because the candidate lacks foundational operational training and credentials in ${subagent.jobDiscipline}, this application faces an immediate discipline filter. Verdict: ${verdictHeadline}.`;
+    } else {
+      const topSkills = competencyAlignment.filter(c => c.percentage >= 70).map(c => c.skill);
+      const skillSummary = topSkills.length ? topSkills.slice(0, 2).join(' and ') : subagent.jobDiscipline;
+      rationale = `Candidate demonstrates solid domain alignment in ${skillSummary}. Experience of ${candidate.experienceYears} yrs compared to ${expInfo.requiredExpStr} makes this a ${isReach ? 'competitive reach' : 'direct qualification'}. Verdict: ${verdictHeadline}.`;
+    }
+
+    // Dynamic Interview Pitch
+    let interviewPitch = '';
+    if (subagent.isDisciplineMismatch) {
+      interviewPitch = `"This role requires domain qualifications in ${subagent.jobDiscipline} outside my core background in ${candidate.candidateDiscipline}. For a cross-discipline transition, emphasize transferable organizational leadership and process execution, or seek hybrid crossover roles."`;
+    } else {
+      const topSkills = candidate.primaryTechnicalDomains.slice(0, 3).join(', ');
+      interviewPitch = `"I bring demonstrated experience in ${topSkills}, and have delivered ${candidate.demonstratedScaleAndScope.split(';')[0] || 'proven deliverables'}, positioning me to contribute immediate production value to ${job.company}."`;
+    }
 
     res.json({
       jobId: job.id,
@@ -805,8 +1043,12 @@ app.post('/api/scan-job', async (req, res) => {
       expScore,
       interviewOdds,
       evidence,
-      technicalAlignment,
+      technicalAlignment: competencyAlignment,
       experienceComparison,
+      rationale,
+      interviewPitch,
+      jobDiscipline: subagent.jobDiscipline,
+      candidateDiscipline: candidate.candidateDiscipline,
       verdictProbabilities: a.decision_verdict?.probabilities ?? {},
       model: response.model,
       tokens: response.usage,
@@ -814,13 +1056,10 @@ app.post('/api/scan-job', async (req, res) => {
         candidateArchetype: subagent.candidateArchetype,
         candidateSeniority: `${candidate.seniorityTier} (${candidate.experienceYears}y exp)`,
         requiredExp: expInfo.requiredExpStr,
-        candidateExp: `${candidate.experienceYears} Years (Production Internships)`,
+        candidateExp: `${candidate.experienceYears} Years verified experience`,
         hasExplicitYears: expInfo.hasExplicitYears,
-        matchedDeliverables,
-        domainGaps,
         summaryVerdict: verdictSubtext
-      },
-      rawAnswers: a
+      }
     });
   } catch (err: any) {
     console.error('Jev evaluation error:', err?.message);
@@ -828,100 +1067,191 @@ app.post('/api/scan-job', async (req, res) => {
   }
 });
 
-// ── Comprehensive Intelligent Resume Parser ──
+// ── Universal Intelligent Resume Parser ──
 const upload = multer({ limits: { fileSize: 10 * 1024 * 1024 } }); // 10MB limit
 
+function calculateYearsFromDateRanges(dateRanges: string[]): number {
+  if (!dateRanges || dateRanges.length === 0) return 1.5;
+
+  const monthNames: Record<string, number> = {
+    jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5,
+    jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11
+  };
+
+  const parsedIntervals: Array<{ start: number; end: number }> = [];
+  const nowYear = new Date().getFullYear();
+  const nowMonth = new Date().getMonth();
+
+  for (const range of dateRanges) {
+    const match = range.match(/(?:([A-Za-z]+)\s+)?(\d{4})\s*[–\-—]\s*(?:(Present|Current|Now)|(?:([A-Za-z]+)\s+)?(\d{4}))/i);
+    if (!match) continue;
+
+    const startMonthStr = match[1]?.toLowerCase().slice(0, 3);
+    const startYear = parseInt(match[2], 10);
+    const startMonth = (startMonthStr && monthNames[startMonthStr] !== undefined) ? monthNames[startMonthStr] : 0;
+
+    let endYear = nowYear;
+    let endMonth = nowMonth;
+    if (!match[3]) {
+      const endMonthStr = match[4]?.toLowerCase().slice(0, 3);
+      endYear = parseInt(match[5], 10);
+      endMonth = (endMonthStr && monthNames[endMonthStr] !== undefined) ? monthNames[endMonthStr] : 11;
+    }
+
+    if (startYear >= 1980 && endYear >= startYear && endYear <= nowYear + 1) {
+      parsedIntervals.push({
+        start: startYear * 12 + startMonth,
+        end: endYear * 12 + endMonth
+      });
+    }
+  }
+
+  if (parsedIntervals.length === 0) {
+    return dateRanges.length >= 4 ? 3.5 : (dateRanges.length >= 2 ? 1.5 : 0.8);
+  }
+
+  parsedIntervals.sort((a, b) => a.start - b.start);
+  let totalMonths = 0;
+  let curStart = parsedIntervals[0].start;
+  let curEnd = parsedIntervals[0].end;
+
+  for (let i = 1; i < parsedIntervals.length; i++) {
+    const inv = parsedIntervals[i];
+    if (inv.start <= curEnd) {
+      curEnd = Math.max(curEnd, inv.end);
+    } else {
+      totalMonths += (curEnd - curStart);
+      curStart = inv.start;
+      curEnd = inv.end;
+    }
+  }
+  totalMonths += (curEnd - curStart);
+
+  const years = Math.round((totalMonths / 12) * 10) / 10;
+  return Math.max(0.5, Math.min(25, years));
+}
+
 export function parseResumeIntelligently(text: string, overrides: any = {}) {
-  // 1. Education Detection
-  const eduMatch = text.match(/(Indian Institute of Technology[^\n,.;|]*|IIT[^\n,.;|]*|National Institute[^\n,.;|]*|BITS[^\n,.;|]*|IIIT[^\n,.;|]*|Stanford[^\n,.;|]*|MIT|Berkeley|University[^\n,.;|]*|College[^\n,.;|]*)/i);
-  const college = eduMatch ? eduMatch[0].trim() : 'IIT / Tier-1 CS Graduate';
-  const degreeMatch = text.match(/(B\.?Tech[^\n,.;|]*|M\.?Tech[^\n,.;|]*|B\.?S\.?[^\n,.;|]*|Bachelor[^\n,.;|]*)/i);
-  const degree = degreeMatch ? degreeMatch[0].trim() : 'B.Tech in CSE';
-  const cgpaMatch = text.match(/(CGPA[:\s]*[\d.]+|GPA[:\s]*[\d.]+)/i);
-  const cgpa = cgpaMatch ? cgpaMatch[0].trim() : '';
-
-  // 2. Experience, Internships & Dates
-  const dateRanges = text.match(/(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{4}\s*[–\-—]\s*(?:Present|(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{4})/gi) || [];
-  
-  const roles: string[] = [];
-  if (/Joveo/i.test(text)) roles.push('Joveo (Backend Intern)');
-  if (/Equal/i.test(text)) roles.push('Equal (Software Developer Intern)');
-
-  // Calculate approximate experience years
-  let calculatedYears = 1.5;
-  if (dateRanges.length >= 4) calculatedYears = 3.5;
-  else if (dateRanges.length >= 2) calculatedYears = 1.5;
-  else if (dateRanges.length === 1) calculatedYears = 0.8;
-
-  const years = overrides.years !== undefined && overrides.years !== '' ? Number(overrides.years) : calculatedYears;
-
-  // 3. Systems Depth & Scale Highlights
-  const systemsHighlights: string[] = [];
-  if (/kafka/i.test(text)) systemsHighlights.push('Kafka-based asynchronous event pipelines (3x throughput boost)');
-  if (/ATS|Greenhouse|Workday|Ashby|SmartRecruiters/i.test(text)) systemsHighlights.push('Enterprise ATS API integrations (Greenhouse, Workday, Ashby, SmartRecruiters)');
-  if (/stateless|S3|RDS|Redis/i.test(text)) systemsHighlights.push('Stateless AWS cloud migration (50% horizontal scalability gain)');
-  if (/1000\+|concurrent|websocket/i.test(text)) systemsHighlights.push('High-concurrency services sustaining 1000+ peak WebSockets');
-  if (/Kubernetes|Terraform|Docker/i.test(text)) systemsHighlights.push('Cloud-native deployments on AWS with Docker, Kubernetes, and Terraform');
-  if (/OAuth|webhook|idempotency/i.test(text)) systemsHighlights.push('Resilient OAuth, REST and webhook integrations with 99.9% sync reliability');
-  if (/Prometheus|Grafana|Loki|observability/i.test(text)) systemsHighlights.push('Observability stack (Prometheus, Grafana, Loki) cutting incident MTTR 30%');
-
-  // 4. Algorithmic Caliber & Achievements
-  const achievements: string[] = [];
-  if (/CatBoost|AiHack|AUC/i.test(text)) achievements.push('AiHack 1st Place: CatBoost model optimization (0.6788 AUC)');
-  if (/LeetCode|Codeforces|1900\+|Expert/i.test(text)) achievements.push('Competitive Programming: LeetCode 1900+ & Codeforces Expert (1650+)');
-
-  // 5. Tech Domains
-  const domains: string[] = [];
-  if (/Kafka|Spring Boot|Node\.?js|Microservices/i.test(text)) domains.push('Distributed Backend & Kafka Pipelines');
-  if (/AWS|Docker|Kubernetes|Terraform/i.test(text)) domains.push('Cloud Infrastructure & DevOps (AWS, K8s, IaC)');
-  if (/WebSockets|REST|OAuth|tRPC/i.test(text)) domains.push('High-Concurrency APIs & Real-Time WebSockets');
-  if (/CatBoost|Machine Learning|Python|OpenAI/i.test(text)) domains.push('Machine Learning & Algorithmic Optimization');
-
-  // 6. Seniority Tier Calibration
-  const seniorityTier: CandidateResume['seniorityTier'] =
-    overrides.seniorityTier || (years >= 4 ? 'Senior' : (systemsHighlights.length >= 3 ? 'Mid-Level' : 'Junior'));
-
-  // 7. Candidate Name extraction
+  // 1. Dynamic Candidate Name extraction
   let parsedName = overrides.name || '';
   if (!parsedName) {
     const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
-    for (let i = 0; i < Math.min(4, lines.length); i++) {
+    for (let i = 0; i < Math.min(5, lines.length); i++) {
       const line = lines[i];
-      if (/^[A-Za-z\s\.\-]{2,40}$/.test(line) && !/(resume|curriculum|vitae|education|experience|summary|skills|projects|contact|email|phone|objective|b\.?tech)/i.test(line)) {
+      if (
+        /^[A-Za-z\s\.\-']{2,40}$/.test(line) &&
+        !/(resume|curriculum|vitae|education|experience|summary|skills|projects|contact|email|phone|objective|\btech\b|university|college|institute)/i.test(line)
+      ) {
         parsedName = line;
         break;
       }
     }
   }
   if (!parsedName || /indian|institute|college|university|custom profile|candidate/i.test(parsedName)) {
-    parsedName = 'Gaurav Ahuja';
+    parsedName = 'Candidate';
   }
+
+  // 2. Education Detection (Universal)
+  const eduMatch = text.match(/\b(Indian Institute of Technology[^\n,.;|]*|IIT[^\n,.;|]*|National Institute[^\n,.;|]*|BITS[^\n,.;|]*|IIIT[^\n,.;|]*|Stanford[^\n,.;|]*|MIT|Berkeley|Harvard|University[^\n,.;|]*|College[^\n,.;|]*|Institute[^\n,.;|]*|School of[^\n,.;|]*)/i);
+  const college = eduMatch ? eduMatch[0].trim() : '';
+  const degreeMatch = text.match(/\b(B\.?Tech[^\n,.;|]*|M\.?Tech[^\n,.;|]*|B\.?S\.?[^\n,.;|]*|M\.?S\.?[^\n,.;|]*|\bB\.?A\.?\b[^\n,.;|]*|\bM\.?A\.?\b[^\n,.;|]*|B\.?Com[^\n,.;|]*|M\.?Com[^\n,.;|]*|\bBBA\b[^\n,.;|]*|\bMBA\b[^\n,.;|]*|Bachelor of [A-Za-z]+|Master of [A-Za-z]+|Bachelor[^\n,.;|]*|Master[^\n,.;|]*|Ph\.?D[^\n,.;|]*|Diploma[^\n,.;|]*)/i);
+  const degree = degreeMatch ? degreeMatch[0].trim() : '';
+  const cgpaMatch = text.match(/(CGPA[:\s]*[\d.]+|GPA[:\s]*[\d.]+|[\d.]+\s*(?:CGPA|GPA))/i);
+  const cgpa = cgpaMatch ? cgpaMatch[0].trim() : '';
+
+  // 3. Experience & Dates
+  const dateRanges = text.match(/(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{4}\s*[–\-—]\s*(?:Present|(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{4})/gi) || [];
+  const calculatedYears = calculateYearsFromDateRanges(dateRanges);
+  const years = overrides.years !== undefined && overrides.years !== '' ? Number(overrides.years) : calculatedYears;
+
+  // 4. Extract Roles & Job Titles (Any profession)
+  const roles: string[] = [];
+  const roleMatches = text.match(/(?:Senior|Staff|Lead|Principal|Associate|Junior|Executive|Head of)?\s*(?:Software Engineer|Backend Engineer|Frontend Engineer|Full[\s\-]?Stack Engineer|Platform Engineer|DevOps Engineer|Data Engineer|Systems Engineer|Human Resources Generalist|Human Resources Specialist|HR Generalist|HR Specialist|HR Manager|HR Business Partner|Recruiter|Talent Acquisition Specialist|Product Manager|Product Owner|UI\/UX Designer|Product Designer|Graphic Designer|Marketing Manager|Marketing Specialist|Content Strategist|SEO Specialist|Financial Analyst|Accountant|Auditor|Operations Manager|Sales Executive|Account Executive|Business Development Representative|Intern)[^\n,.;|]*/gi);
+  if (roleMatches) {
+    const uniqueRoles = Array.from(new Set(roleMatches.map(r => {
+      return r.split(/\s+(?:at|@|\-|\–|\—)\s+|\s*\(/i)[0].trim();
+    }))).slice(0, 3);
+    roles.push(...uniqueRoles);
+  }
+
+  // 5. Detect Candidate Discipline
+  const candidateDiscipline = overrides.discipline || detectDiscipline(text, roles[0] || '');
+
+  // 6. Seniority Tier Calibration
+  const seniorityTier: CandidateResume['seniorityTier'] =
+    overrides.seniorityTier || (years >= 5 ? 'Senior' : (years >= 2 ? 'Mid-Level' : 'Junior'));
+
+  // 7. Extract Demonstrated Highlights & Impact Bullets
+  const systemsHighlights: string[] = [];
+  const lines = text.split('\n').map(l => l.trim());
+  for (const line of lines) {
+    if (line.startsWith('–') || line.startsWith('-') || line.startsWith('•') || line.startsWith('*')) {
+      const cleanBullet = line.replace(/^[\–\-\•\*]\s*/, '').trim();
+      if (cleanBullet.length > 25 && cleanBullet.length < 180) {
+        if (/(\d+%|\d+x|\$[\d,]+|\bbuilt\b|\bmanaged\b|\bled\b|\bimproved\b|\breduced\b|\bdelivered\b|\barchitected\b|\bdesigned\b|\bscaled\b)/i.test(cleanBullet)) {
+          systemsHighlights.push(cleanBullet);
+          if (systemsHighlights.length >= 4) break;
+        }
+      }
+    }
+  }
+
+  // 8. Extract Skills & Competencies dynamically
+  const skillsList: string[] = [];
+  const skillsSectionMatch = text.match(/(?:Technical Skills|Key Skills|Skills|Core Competencies|Areas of Expertise|Tools & Technologies)[:\n]([\s\S]{0,500})/i);
+  if (skillsSectionMatch && skillsSectionMatch[1]) {
+    const skillLines = skillsSectionMatch[1].split(/\n|\/|\||,/).map(s => s.replace(/^[–\-\•\*]\s*/, '').replace(/^[A-Za-z]+:\s*/, '').trim());
+    for (const sk of skillLines) {
+      if (sk.length >= 2 && sk.length <= 30 && !/(experience|projects|education|summary|achievements)/i.test(sk)) {
+        if (!skillsList.includes(sk)) skillsList.push(sk);
+        if (skillsList.length >= 6) break;
+      }
+    }
+  }
+
+  // Fallback domain tokens if explicit skills were sparse
+  if (skillsList.length === 0) {
+    const catalogEntry = DISCIPLINE_CATALOG.find(d => d.discipline === candidateDiscipline);
+    if (catalogEntry) {
+      for (const comp of catalogEntry.competencies) {
+        if (new RegExp(comp.keywords.source, 'gi').test(text)) {
+          skillsList.push(comp.name);
+        }
+      }
+    }
+  }
+
+  const derivedTargetRole = overrides.targetRole ||
+    (roles.length > 0 ? roles[0] : `${seniorityTier} ${candidateDiscipline} Professional`);
 
   const candidate: CandidateResume = {
     id: 'custom',
     name: parsedName,
-    targetRole: overrides.targetRole || `${seniorityTier} Backend & Systems Engineer`,
+    targetRole: derivedTargetRole,
     experienceYears: years,
     seniorityTier,
-    engineeringArchetype: `High-Velocity ${seniorityTier} Systems Engineer with verified distributed event pipelines & high-concurrency architecture`,
-    demonstratedScaleAndScope: systemsHighlights.join('; ') || 'Proven hands-on production engineering deliverables and cloud architectures.',
-    autonomyTrackRecord: 'Operates with high autonomy on complex distributed systems, achieving 99.9% sync reliability and 40% P95 latency reduction.',
-    primaryTechnicalDomains: domains.length ? domains : ['Distributed Systems', 'Cloud Backend', 'API Infrastructure'],
+    candidateDiscipline,
+    engineeringArchetype: overrides.archetype || `${seniorityTier} in ${candidateDiscipline}`,
+    demonstratedScaleAndScope: systemsHighlights.join('; ') || `Proven track record of operational and professional execution in ${candidateDiscipline}.`,
+    autonomyTrackRecord: overrides.autonomy || (seniorityTier === 'Senior' || seniorityTier === 'Staff / Lead'
+      ? 'Operates with high autonomy on complex initiatives and end-to-end deliverables.'
+      : 'Demonstrated execution of core functional deliverables and operational priorities.'),
+    primaryTechnicalDomains: skillsList.length ? skillsList : [candidateDiscipline],
     fullResumeText: text.trim()
   };
 
   return {
     candidate,
     metadata: {
-      college,
-      degree,
+      college: college || 'Higher Education Graduate',
+      degree: degree || candidateDiscipline,
       cgpa,
-      roles: roles.length ? roles : ['Software Engineering Intern / Contributor'],
+      roles: roles.length ? roles : [derivedTargetRole],
       dateRanges,
       calculatedYears,
-      achievements,
+      achievements: systemsHighlights.slice(0, 2),
       systemsHighlights,
-      domains
+      domains: skillsList
     }
   };
 }
@@ -967,4 +1297,11 @@ app.post('/api/parse-resume', (req, res) => {
 });
 
 const PORT = 3001;
-app.listen(PORT, () => console.log(`GhostHunter Jev Server running on http://localhost:${PORT}`));
+const server = app.listen(PORT, () => console.log(`GhostHunter Jev Server running on http://localhost:${PORT}`));
+
+process.on('SIGTERM', () => {
+  server.close(() => process.exit(0));
+});
+process.on('SIGINT', () => {
+  server.close(() => process.exit(0));
+});

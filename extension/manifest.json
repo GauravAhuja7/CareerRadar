@@ -26,7 +26,21 @@
   "content_scripts": [
     {
       "matches": [
-        "<all_urls>"
+        "*://*.linkedin.com/*",
+        "*://*.indeed.com/*",
+        "*://*.google.com/about/careers/*",
+        "*://careers.google.com/*",
+        "*://*.wellfound.com/*",
+        "*://*.angel.co/*",
+        "*://*.workatastartup.com/*",
+        "*://*.greenhouse.io/*",
+        "*://*.lever.co/*",
+        "*://*.ashbyhq.com/*",
+        "*://*.myworkdayjobs.com/*",
+        "*://*.amazon.jobs/*",
+        "*://*.smartrecruiters.com/*",
+        "*://*.icims.com/*",
+        "*://*.jobvite.com/*"
       ],
       "js": ["content.js"],
       "run_at": "document_idle"

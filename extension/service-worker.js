@@ -24,11 +24,9 @@ chrome.runtime.onInstalled.addListener(async () => {
   if (chrome.sidePanel?.setPanelBehavior) {
     chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch(() => {});
   }
-  const existing = await chrome.storage.local.get(['backendUrl', 'autoScanEnabled']);
+  // H8 fix: cleaned up dead autoScanEnabled and backendUrl storage keys
   await chrome.storage.local.set({
-    activePersona: 'custom',
-    backendUrl: existing.backendUrl || 'http://localhost:3001',
-    autoScanEnabled: true
+    activePersona: 'custom'
   });
 });
 
