@@ -46,24 +46,41 @@ function isJobPage() {
     host.includes('amazon.jobs') ||
     host.includes('smartrecruiters.com') ||
     host.includes('icims.com') ||
-    host.includes('jobvite.com')
+    host.includes('jobvite.com') ||
+    host.includes('rippling.com') ||
+    host.includes('bamboohr.com') ||
+    host.includes('pinpointhq.com')
   ) {
     return true;
   }
 
-  // Stricter generic path matching (H6 fix: avoid false positives like /blog/best-careers/)
-  if (/(^|\/)(?:jobs|careers|positions)(\/|$)/.test(path)) {
+  // URL path indicators for job postings
+  if (/(^|\/)(?:jobs?|careers?|positions?|roles?|apply|openings?)(\/|$)/.test(path)) {
     return true;
   }
 
   // DOM heuristics for career pages
   if (
     document.querySelector(
-      '.jobs-search__job-details, .scaffold-layout__detail, [data-view-name="job-details-component"], #job-details, .jobsearch-JobComponent, .gc-job-detail, [itemtype*="JobPosting"]'
+      '.jobs-search__job-details, .scaffold-layout__detail, [data-view-name="job-details-component"], #job-details, .jobsearch-JobComponent, .gc-job-detail, [itemtype*="JobPosting"], [data-qa="job-description"], .job-description'
     )
   ) {
     return true;
   }
+
+  // Deep content text heuristics (catches custom career pages like Dynabase)
+  try {
+    const bodySample = (document.body?.innerText || '').slice(0, 4000).toLowerCase();
+    if (
+      bodySample.includes('about the job') ||
+      bodySample.includes('about the role') ||
+      bodySample.includes('apply for this role') ||
+      bodySample.includes('send us your details') ||
+      (bodySample.includes('responsibilities') && (bodySample.includes('requirements') || bodySample.includes('qualifications')))
+    ) {
+      return true;
+    }
+  } catch {}
 
   return false;
 }
@@ -197,9 +214,9 @@ function extractActiveJobDetails() {
   }
   // 5. General Career Pages
   else {
-    title = document.querySelector('h1.app-title, .posting-headline h2, h1')?.innerText?.trim() || '';
+    title = document.querySelector('h1.app-title, .posting-headline h2, [data-qa="job-title"], h1, h2')?.innerText?.trim() || '';
     company = document.querySelector('.company-name, .posting-headline .company, meta[property="og:site_name"]')?.innerText?.trim() || '';
-    const descEl = document.querySelector('#content, .section-wrapper, .job-description, [data-qa="job-description"], main, article');
+    const descEl = document.querySelector('#content, .section-wrapper, .job-description, [data-qa="job-description"], [class*="job-description"], [class*="jobDescription"], main, article');
     description = descEl?.innerText?.trim() || '';
   }
 
@@ -211,14 +228,26 @@ function extractActiveJobDetails() {
     }
   }
 
+  if (!company || company === 'Detected Company') {
+    const metaCompany = document.querySelector('meta[property="og:site_name"]')?.getAttribute('content');
+    if (metaCompany) {
+      company = metaCompany;
+    } else {
+      const parts = window.location.hostname.replace(/^www\./, '').split('.');
+      if (parts[0] && parts[0] !== 'localhost') {
+        company = parts[0].charAt(0).toUpperCase() + parts[0].slice(1);
+      }
+    }
+  }
+
   if (!title) title = 'Software Engineer Opportunity';
   if (!company) company = 'Detected Company';
   if (!location) location = 'Remote / Hybrid';
-  if (!description || description.length < 40) {
-    description = (detailPane || document.body)?.innerText?.slice(0, 5000) || 'Job description context.';
+  if (!description || description.length < 60) {
+    description = (detailPane || document.body)?.innerText?.slice(0, 10000) || 'Job description context.';
   }
 
-  const jobId = getActiveJobIdFromPage() || `${title}::${company}`;
+  const jobId = getActiveJobIdFromPage() || `${title}::${company}::${window.location.pathname}`;
   return { jobId, title, company, location, description };
 }
 
