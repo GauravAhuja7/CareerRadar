@@ -439,11 +439,16 @@ async function evaluateJobDetails(scraped, fallbackTab = null) {
 }
 
 // ── Tab Evaluation Execution ──
-async function evaluateCurrentTab() {
+async function evaluateCurrentTab(force = false) {
   const tab = await getActiveTab();
-  if (!tab || !tab.id) return;
+  if (!tab || !tab.id || tab.url?.startsWith('chrome://')) return;
 
-  // Request scraped details from the canonical content script (H2/H3 fix: no duplicate executeScript)
+  if (force) {
+    currentEvaluatedJobId = null;
+    activeJobData = null;
+  }
+
+  // Request scraped details from the canonical content script
   let scraped = null;
   try {
     const response = await chrome.tabs.sendMessage(tab.id, { type: 'GET_ACTIVE_JOB_DETAILS' });
@@ -451,7 +456,59 @@ async function evaluateCurrentTab() {
       scraped = { ...response, url: tab.url || '' };
     }
   } catch {
-    // Content script may not be active on this URL
+    // Content script may not be loaded yet on this tab; inject it dynamically
+    try {
+      if (chrome.scripting && tab.id) {
+        await chrome.scripting.executeScript({
+          target: { tabId: tab.id },
+          files: ['content.js']
+        });
+        const retry = await chrome.tabs.sendMessage(tab.id, { type: 'GET_ACTIVE_JOB_DETAILS' });
+        if (retry && (retry.title || retry.description)) {
+          scraped = { ...retry, url: tab.url || '' };
+        }
+      }
+    } catch (injErr) {
+      console.warn('Dynamic script injection failed:', injErr);
+    }
+  }
+
+  // Fallback: extract page body text directly if content script extraction was insufficient
+  if (!scraped || !scraped.description || scraped.description.length < 50) {
+    try {
+      if (chrome.scripting && tab.id) {
+        const [result] = await chrome.scripting.executeScript({
+          target: { tabId: tab.id },
+          func: () => ({
+            title: document.querySelector('h1, h2, [data-qa="job-title"]')?.innerText?.trim() || document.title,
+            bodyText: document.body?.innerText?.slice(0, 10000) || ''
+          })
+        });
+
+        if (result?.result?.bodyText && result.result.bodyText.length > 50) {
+          const rawTitle = result.result.title || tab.title || 'Job Opportunity';
+          const cleanTitle = rawTitle.split(/ [|\-–—] /)[0].trim() || 'Software Engineer';
+          let derivedCompany = 'Detected Company';
+          try {
+            const hostParts = new URL(tab.url).hostname.replace(/^www\./, '').split('.');
+            if (hostParts[0] && hostParts[0] !== 'localhost') {
+              derivedCompany = hostParts[0].charAt(0).toUpperCase() + hostParts[0].slice(1);
+            }
+          } catch {}
+
+          scraped = {
+            jobId: `${cleanTitle}::${derivedCompany}::${tab.id}`,
+            title: cleanTitle,
+            company: derivedCompany,
+            location: 'Remote / Hybrid',
+            description: result.result.bodyText,
+            url: tab.url || ''
+          };
+        }
+      }
+    } catch (e) {
+      console.warn('Direct DOM extraction fallback failed:', e);
+    }
   }
 
   if (!scraped) {
@@ -539,7 +596,7 @@ async function init() {
   btnDoneHide?.addEventListener('click', () => toggleProfileCard(false));
 
   refreshBtn?.addEventListener('click', () => {
-    evaluateCurrentTab();
+    evaluateCurrentTab(true);
   });
 
   // Reasoning Drawer Controls
@@ -554,37 +611,31 @@ async function init() {
     const shouldOpen = open !== null ? open : !reasoningDrawer.classList.contains('open');
     if (shouldOpen) {
       reasoningDrawer.classList.add('open');
-      reasoningBackdrop.classList.add('open');
+      reasoningBackdrop.classList.add('visible');
     } else {
       reasoningDrawer.classList.remove('open');
-      reasoningBackdrop.classList.remove('open');
+      reasoningBackdrop.classList.remove('visible');
     }
   }
 
-  btnViewReasoning?.addEventListener('click', () => toggleReasoningDrawer());
+  btnViewReasoning?.addEventListener('click', () => toggleReasoningDrawer(true));
   btnCloseReasoning?.addEventListener('click', () => toggleReasoningDrawer(false));
   reasoningBackdrop?.addEventListener('click', () => toggleReasoningDrawer(false));
 
-  // Copy Pitch Handlers — uses dynamically generated pitch
-  function copyStrategicPitch() {
-    const pitchText = lastGeneratedPitch || document.getElementById('drawer-interview-pitch')?.innerText || '';
-    if (!pitchText) {
-      showToast('No pitch available — evaluate a job first');
-      return;
+  btnCopyPitch?.addEventListener('click', () => {
+    if (lastGeneratedPitch) {
+      navigator.clipboard.writeText(lastGeneratedPitch).then(() => {
+        showToast('✓ Dynamic pitch copied to clipboard');
+      }).catch(() => {
+        showToast('Failed to copy pitch');
+      });
     }
-    navigator.clipboard.writeText(pitchText).then(() => {
-      showToast('✓ Strategic pitch copied to clipboard');
-    }).catch(() => {
-      showToast('✓ Pitch ready');
-    });
-  }
+  });
 
-  btnCopyPitch?.addEventListener('click', copyStrategicPitch);
-
+  // Apply Anyway Button Handler
   const btnApplyAnyway = document.getElementById('btn-apply-anyway');
-
   btnApplyAnyway?.addEventListener('click', () => {
-    copyStrategicPitch();
+    showToast('🚀 Navigating to job application...');
     getActiveTab().then(tab => {
       if (tab?.id) chrome.tabs.update(tab.id, { active: true });
     });
@@ -594,7 +645,7 @@ async function init() {
   document.addEventListener('keydown', (e) => {
     if ((e.metaKey || e.ctrlKey) && e.key === 'r') {
       e.preventDefault();
-      evaluateCurrentTab();
+      evaluateCurrentTab(true);
     } else if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
       e.preventDefault();
       btnApplyAnyway?.click();
